@@ -1,0 +1,177 @@
+################################################################################
+## TCL dictionary with project settings as white space separated tupels
+################################################################################
+
+# Configuration Dictionary File Version
+CDF_VER "1.0.0"
+
+## Project parameters
+# Override project.cfg project name
+PRJ_NAME "prj0"
+# Mandatory
+MDT_PARAMS {
+    # Vivado toolchain version string e.g. 2017.4
+    req_vivado_vers "<VIVADO_VERSION>"
+    # Vivado toolchain version year string e.g. 2017
+    vivado_year "<VIVADO_YEAR>"
+    # Target language e.g. Verilog (or VHDL)
+    target_language "<TARGET_LANGUAGE>"
+    # Default library e.g. xil_defaultlib
+    default_lib "<DEFAULT_LIB>"
+    # FPGA part number e.g. xc7z045ffg900-2
+    part "<PART>"
+    # FPGA design top level module name e.g fpga_top
+    hdl_top_module_name "<FPGA_TOP>"
+}
+
+# Fileset: 'filelist' and 'directory' tupels both as paths relative to flavor.
+# The filepaths listed in a 'filelist' are expected to be located relative to
+# the 'directory' path
+CONSTR_SET {
+    filelists/constr.f constr
+}
+
+SRC_SET {
+    filelists/hdl.f hdl
+    filelists/ip.f ip
+}
+SIM_SET {
+    filelists/sim.f sim
+}
+INCL_SET {
+    filelists/hdl_include.f hdl
+    filelists/ip_include.f ip
+}
+SIM_INCL_SET {
+    filelists/sim_include.f sim
+}
+TCL_SET {
+    filelists/ip_tcl.f ip
+}
+
+# Optional
+#OPT_PARAMS {
+#    # Debug target constraints file. If the file does not exist, it will be
+#    # created local to the project (with name 'debug.xdc' for an empty string)
+#    debug_target ""
+#    # FPGA board part "" or e.g. xilinx.com:zc706:part0:1.3
+#    board "<BOARD>"
+#    # Vivado XPR name
+#    xpr_name "<PRJ_NAME>"
+#    # IP-XACT repositories relative to flavor
+#    ipxact_dir {
+#        "PATH1"
+#        "../PATH2"
+#    }
+#    # Set the IP Cache directory relative to flavor. The default folder (empty
+#    # string) is the build container directory e.g. 'build/ip_cache'
+#    use_ip_cache_dir ""
+#}
+
+# Simulation specific parameters
+#SIM_PARAMS {
+#    # Simulation top level test bench file e.g. tb_top
+#    sim_top_module_name ""
+#    # Simulation time e.g. 5000ns
+#    sim_time ""
+#    # Log all signals e.g. true
+#    sim_log_all ""
+#    # Simulation waveform file e.g. tb_top_wave.do
+#    sim_wave_do ""
+#    # Simulator language e.g. Mixed (or Verilog, VHDL)
+#    simulator_language "<SIMULATOR_LANGUAGE>"
+#    # Vivado compatible simulation tool e.g. XSim (or ModelSim, Questa, IES, VCS, Riviera)
+#    target_simulator "<TARGET_SIMULATOR>"
+#}
+
+# Pass generics to top level HDL
+#GENERICS {
+#    SIMULATION "FALSE"
+#    NUM_LANES 4
+#}
+
+#VERILOG_OPTIONS {
+#    # Verilog defines
+#    DEFINES {
+#        SIMULATION "FALSE"
+#        NUM_LANES 4
+#    }
+#    SIM_DEFINES {
+#    }
+#}
+
+#PACKAGE_IP {
+#    # Mandatory IP core identification
+#    ident {
+#        # Package block design - leave empty for non-BD based projects
+#        bd_name ""
+#        # Package Nested IPs in source or xci files e.g. true (or false)
+#        package_xci ""
+#        # Taxonomy e.g. /UserIP
+#        taxonomy ""
+#        # Library e.g. user
+#        lib ""
+#        ipname ""
+#        version ""
+#        core_revision ""
+#        display_name ""
+#        description ""
+#        vendor ""
+#        ven_disp_name ""
+#        company_url ""
+#    }
+#    ## Optional
+#    # Output folder container relative to flavor
+#    container_dir ""
+#    # Output ZIP file in build folder
+#    zip_name ""
+#    # IP package commands in braces
+#    component {
+#        {CMD-0}
+#        {CMD-N}
+#    }
+#    # TCL file relative to flavor containing IP package commands
+#    component_tcl ""
+#}
+
+# Out of context modules. Syntax: module_name {filelist directory}
+# Filelists and directory relative to flavor
+#OOC_MODULES {
+#    module_a {
+#        filelists/ooc_constr0.f dir0
+#        filelists/ooc_constr1.f dir1
+#    }
+#    module_b {}
+#}
+
+# User hook scripts relative to flavor for Vivado build steps.
+# 'bld_': Execute hook pre/post launch of step in build.tcl
+# 'viv_': Append hook to Vivado pre/post hook
+# Keys:
+# - bld_{prj|synth|impl|bit}_{pre|post}
+# - viv_{sim|synth|bit}_{pre|post}
+# - viv_impl_{opt_design|power_opt_design|place_design|
+#       post_place_power_opt_design|phys_opt_design|route_design|
+#       post_route_phys_opt_design}_{pre|post}
+#USER_HOOKS {
+#    viv_synth_pre "synth_pre.tcl"
+#    bld_synth_post {
+#        "synth_post0.tcl"
+#        "synth_post1.tcl"
+#    }
+#}
+
+# Export netlists for modules.
+# Specifies instances within the design to export netlists for each instance to
+# be netlisted may be exported in multiple netlist formats the netlist format
+# and the file the netlist is written to formatted to format. The path of the
+# output file is relative to the flavor.
+#WRITE_NETLISTS {
+#    module0_instance_name {
+#        types verilog
+#        output_file "path/to/file"
+#    }
+#    module1_instance_name {
+#        types {verilog vhdl}
+#    }
+#}
