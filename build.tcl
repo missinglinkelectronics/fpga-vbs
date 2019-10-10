@@ -122,7 +122,7 @@ source "${helper_tcl_file}"
 
 set config_dict_file "[file normalize "${base_dir}/${flavor}/${config_dict_name}"]"
 if {[file exists "${config_dict_file}"]} {
-    set config_dict [restore_dict "${config_dict_file}"]
+    set config_dict [parse_dict [restore_dict "${config_dict_file}"]]
 } else {
     puts "ERROR: Configuration dictionary file not found: ${config_dict_file}"
     exit 2

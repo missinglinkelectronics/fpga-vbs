@@ -3,7 +3,7 @@
 ################################################################################
 
 # Configuration Dictionary File Version
-CDF_VER "1.0.0"
+CDF_VER "1.1.0"
 
 ## Project parameters
 # Override project.cfg project name
@@ -48,6 +48,16 @@ SIM_INCL_SET {
 TCL_SET {
     filelists/ip_tcl.f ip
 }
+
+# Include/Merge dictionary file. The file path is relative to the including
+# dictionary file. Behavior:
+#   - Add keys to hierarchy if not existent
+#   - Overwrite values of existing keys at leaf level
+#/include/ "base-config.dict"
+
+# Delete dictionary key by hierarchical statement using the ':' character to
+# step into the next key-value level
+#/delete/ {SRC_SET:filelists/ip.f}
 
 # Optional
 #OPT_PARAMS {

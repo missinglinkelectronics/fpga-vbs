@@ -90,6 +90,21 @@ Example:
         filelists/ip.f ip
     }
 ***
+Include/Merge dictionary file using the */include/* key. The file path is relative to the including dictionary file. Behavior:
+* Add keys to hierarchy if not existent
+* Overwrite values of existing keys at leaf level
+
+Example:
+
+    /include/ "base-config.dict"
+***
+Delete dictionary key by hierarchical statement using the ':' character to step into the next key-value level.
+
+Example:
+
+    /delete/ {SRC_SET:filelists/ip.f}
+    /delete/ {SIM_SET}
+***
 Top level HDL generics may be set using the GENERICS key.
 
 Example:

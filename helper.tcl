@@ -33,20 +33,90 @@ proc save_dict {filename dict} {
     close $fd
 }
 
+# Open file and write to list
 proc restore_dict {filename} {
     set fd [open $filename r]
     set buf [read $fd]
     close $fd
 
-    # Remove comment and empty lines
-    set restored_dict ""
+    # Remove comment, empty lines and trailing spaces
+    set num 0
+    set trim_dict ""
     set data [split $buf "\n"]
     foreach line $data {
-    if {![string equal $line ""] && [string first "#" $line] < 0} {
-            set restored_dict "$restored_dict $line"
+        # A number is added to the include/delete statement per file as it is
+        # treated as a dictionary key that needs be unique
+        if {[string match "\/include\/*" $line]} {
+            set line [string replace $line 0 9 "/include$num/ "]
+            incr num
+        } elseif {[string match "\/delete\/*" $line]} {
+            set line [string replace $line 0 8 "/delete$num/ "]
+            incr num
+        }
+        if {![string equal $line ""] && [string first "#" $line] < 0} {
+            set trim_dict "$trim_dict [string trimleft $line]"
         }
     }
-    return $restored_dict
+    set trim_dict "$trim_dict DDIR [file dirname [file normalize $filename]]"
+    return $trim_dict
+}
+
+# Add keys in dsrc to dglob
+proc parse_dict {dsrc} {
+    set dglob [dict create]
+    dict for {key val} $dsrc {
+        if {[string match "\/include*\/" $key]} {
+            set incl_file [file normalize "[dict get $dsrc "DDIR"]/$val"]
+            set dsub [parse_dict [restore_dict $incl_file]]
+            set dglob [merge_dict $dglob $dsub]
+        } elseif {[string match "\/delete*\/" $key]} {
+            set dglob [delete_key $dglob $val]
+        } else {
+            set dglob [merge_dict $dglob "$key {$val}"]
+        }
+    }
+    return $dglob
+}
+
+# Merge dictionary dmerge into dictionary dbase
+#   - Add keys hierarchically if not existent
+#   - Overwrite values of existent keys at leaf hierarchy
+proc merge_dict {dbase dmerge} {
+    if [catch {dict size $dmerge} err] {
+        return $dmerge
+    }
+    dict for {key val} $dmerge {
+        if {![dict exists $dbase $key]} {
+            dict set dbase $key $val
+        } else {
+            dict set dbase $key [merge_dict [dict get $dbase $key] $val]
+        }
+    }
+    return $dbase
+}
+
+# Delete dictionary key by hierarchical statement using the ':' character to
+# step into the next key-value level
+proc delete_key {dbase key} {
+    set split_keys [split $key ":"]
+    if {[llength $split_keys] == 1} {
+        if {[dict exists $dbase $key]} {
+            return [dict remove $dbase $key]
+        } else {
+            puts "WARNING: Key ${key} not found in dictionary"
+            return $dbase
+        }
+    } else {
+        set sub_key [lindex $split_keys 0]
+        if {[dict exists $dbase $sub_key]} {
+            set sub_dict [dict get $dbase $sub_key]
+        } else {
+            puts "WARNING: Key ${sub_key} not found in dictionary"
+            return $dbase
+        }
+        set join_keys  [join [lrange $split_keys 1 end] ":"]
+        return [dict set dbase $sub_key [delete_key $sub_dict $join_keys]]
+    }
 }
 
 # Timestamp
