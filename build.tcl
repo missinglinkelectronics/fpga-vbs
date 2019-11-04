@@ -579,23 +579,6 @@ if {$start_step == $build_steps(prj)} {
 
     ############################################################################
 
-    puts "Setting ${hdl_top_module_name} as top-level module ..."
-    set_property top $hdl_top_module_name $fileset_sources
-
-    puts "Updating compile order on fileset_sources ..."
-    update_compile_order -fileset $fileset_sources
-
-    if {[info exists sim_top_module_name]} {
-        puts "Setting ${sim_top_module_name} as test bench top-level module ..."
-        set_property top     $sim_top_module_name $fileset_sim
-        set_property top_lib $default_lib         $fileset_sim
-
-        puts "Updating compile order on fileset_sim ..."
-        update_compile_order -fileset $fileset_sim
-    }
-
-    ############################################################################
-
     if {[info exists sim_time] && ![string equal $sim_time ""]} {
         set_property -name "${target_simulator_lc}.simulate.runtime" \
                 -value "${sim_time}" -objects $fileset_sim
@@ -662,6 +645,23 @@ if {$start_step == $build_steps(prj)} {
         dict for {key value} $synth_strat {
             set_property "${key}" "${value}" $run_synth
         }
+    }
+
+    ############################################################################
+
+    puts "Setting ${hdl_top_module_name} as top-level module ..."
+    set_property top $hdl_top_module_name $fileset_sources
+
+    puts "Updating compile order on fileset_sources ..."
+    update_compile_order -fileset $fileset_sources
+
+    if {[info exists sim_top_module_name]} {
+        puts "Setting ${sim_top_module_name} as test bench top-level module ..."
+        set_property top     $sim_top_module_name $fileset_sim
+        set_property top_lib $default_lib         $fileset_sim
+
+        puts "Updating compile order on fileset_sim ..."
+        update_compile_order -fileset $fileset_sim
     }
 
     ############################################################################
