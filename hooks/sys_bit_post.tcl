@@ -44,7 +44,6 @@ set project_name [dict get $bvars "PNAME"]
 set tl_name      [dict get $bvars "TLNAME"]
 set run_impl_dir [dict get $bvars "RIMPLDIR"]
 set result_base  [dict get $bvars "RBASE"]
-set debug_target [dict get $bvars "DBGT"]
 
 ################################################################################
 
@@ -67,10 +66,11 @@ if [file exists "${sysdef_gen_file}"] {
 }
 
 # .ltx file
-set ltx_gen_file "[file normalize "${run_impl_dir}/${debug_target}.ltx"]"
-set ltx_out_file "[file normalize "${project_dir}/${result_base}.ltx"]"
-
-if [file exists "${ltx_gen_file}"] {
+if {![catch {glob ${run_impl_dir}/*.ltx} ltx_gen_file]} {
+    # The index 0 is used because Vivado may generate an additional ltx file
+    # when the 'debug_target' is used but both ltx files are identical.
+    set ltx_gen_file [file normalize [lindex $ltx_gen_file 0]]
+    set ltx_out_file "[file normalize "${project_dir}/${result_base}.ltx"]"
     file copy -force -- "${ltx_gen_file}" "${ltx_out_file}"
 }
 
