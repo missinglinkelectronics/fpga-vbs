@@ -3,7 +3,7 @@
 ################################################################################
 
 # Configuration Dictionary File Version
-CDF_VER "1.1.0"
+CDF_VER "1.1.1"
 
 ## Project parameters
 # Override project.cfg project name
@@ -142,6 +142,8 @@ TCL_SET {
 #    }
 #    # TCL file relative to flavor containing IP package commands
 #    component_tcl ""
+#    # TCL file relative to flavor containing BD Propagation TCL file
+#    bd_tcl ""
 #}
 
 # Out of context modules. Syntax: module_name {filelist directory}

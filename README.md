@@ -177,6 +177,7 @@ Configure IPXACT IP core generation using the PACKAGE_IP key.
 * zip_name: Output ZIP file in build folder
 * component: IP package commands in braces
 * component_tcl: TCL file relative to flavor containing IP package commands
+* bd_tcl: TCL file relative to flavor containing BD Propagation TCL file
 
 Example:
 
@@ -203,6 +204,7 @@ Example:
             {set_property widget {textEdit} [ipgui::get_guiparamspec -name "NUM_LANES" -component [ipx::current_core] ]}
         }
         component_tcl {yaip_component.tcl}
+        bd_tcl {yaip_bd.tcl}
     }
 ***
 Set modules *Out Of Context* (OOC) using the OOC_MODULES key. Constraints files per OOC module run may be added by setting filelist-directory tupels.

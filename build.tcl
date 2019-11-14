@@ -967,8 +967,24 @@ if {$start_step == $build_steps(package) || \
                 puts "WARNING: Component TCL file does not exist: ${comp_tcl_file}"
             }
         }
-
         # END IP specific properties
+
+        # Add BD TCL
+        if {[dict exists $package_ip_dict "bd_tcl"]} {
+            set bd_tcl_file [dict get $package_ip_dict "bd_tcl"]
+            set bd_tcl_src [file normalize "${flavor_dir}/${bd_tcl_file}"]
+            set bd_tcl_name [file tail $bd_tcl_file]
+            set bd_tcl_dst [file normalize "${root_dir}/bd/bd.tcl"]
+
+            file mkdir [file dirname "${bd_tcl_dst}"]
+            file copy -force -- "${bd_tcl_src}" "${bd_tcl_dst}"
+            ipx::add_file_group -type xilinx_blockdiagram {} [ipx::current_core]
+            ipx::add_file "${bd_tcl_dst}" \
+                [ipx::get_file_groups xilinx_blockdiagram -of_objects \
+                [ipx::current_core]]
+        }
+
+        # Save core
         ipx::create_xgui_files          [ipx::current_core]
         ipx::update_checksums           [ipx::current_core]
         ipx::save_core                  [ipx::current_core]
