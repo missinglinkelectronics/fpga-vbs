@@ -26,10 +26,12 @@
 -->
 
 # Vivado Build System
-Description of FPGA project structure and build scripts to run Xilinx Vivado builds in batch mode. The build scripts are tested with Vivado from version 2016.4. The build scripts run under Linux (Ubuntu 2016.4/2018.4 tested) and require the `bash` and common software such as `sed`, `grep`, etc.
+To facilitate an FPGA Build Environment which can be automated, for example for Continuous Integration (CI), and which ensures fully reproducible results later in the development and product lifecycle, the Team at Missing Link Electronics has put together a collection of scripts. Currently focused on the Xilinx Vivado toolchain (Version 2016.4 or newer) and tested under Ubuntu Linux 16.04 LTS and 18.04 LTS, this scripted FPGA Build Environment has been made available here at GitHub under open source Apache 2.0 license.
+
+The following is a description of the FPGA project structure and build scripts to run Xilinx Vivado builds in batch mode. The build scripts run under Linux and require the `bash` and common software such as `sed`, `grep`, etc.
 
 ## Before you start
-Place the files alongside this README file in a folder named *scripts* inside your project folder. The scripts will assume *scripts/..* to be the base directory of the project. Add the scripts-repository as GIT submodule to your repository or add the scripts folder to your project's *.gitignore* file. In addition, add the default build output folder *build* to the *.gitignore* file. A global build configuration file *project.cfg* may be located in the project's base directory. A template configuration file may be copied from *scripts/templates/project.cfg*.
+Place the files alongside this README file in a folder (e.g. named *scripts*) inside your project folder. Add the scripts-repository as GIT submodule to your repository or add the scripts folder to your project's *.gitignore* file. In addition, add the default build output folder *build* to your *.gitignore* file.
 
 ## add_flavor.sh
 `add_flavor.sh` will add a Xilinx FPGA project/sub-project stub to the project's base directory. Sub-projects will be called **flavors** in the following.
@@ -41,7 +43,7 @@ Place the files alongside this README file in a folder named *scripts* inside yo
 
 Before using the script, set the variables in *project.cfg* if a project wide configuration file with settings is used. Variables such as VIVADO_VERSION and PART will overwrite placeholder strings in the template/stub files that will be copied. The source template files that will be copied are located in the *templates* folder. To initialize a new Xilinx FPGA project run `add_flavor.sh`. The template files will be copied to the project's base directory. You can start with the default flavor (not using the -f option) which will not create a flavor subfolder. When you need to add flavors afterwards, use the *-f* option to generate the subfolder and move the existing folders from the base directory to the flavor subfolder.
 
-See script [examples](#add_flavor.sh-examples) at the end of this file.
+See script [examples](#add_flavorsh-examples) at the end of this file.
 
 ## Project structure and build scripts
 The build system consists of the folders *scripts*, *constr*, *filelists*, *hdl*, *ip*, *sim* and the files *config.dict* and *project.cfg*. The *scripts* folder is shared among all flavors and contains TCL and Shell scripts to issue a Vivado build process; all other files/folders are generated for each flavor separately.
@@ -59,12 +61,12 @@ build
 Running `build.sh` in a Vivado environment (e.g. for Vivado 2019.1 under Ubuntu run */opt/xilinx/vivado/v2019.1/Vivado/2019.1/settings64.sh*) will execute Vivado in non-project batch mode and pass over *build.tcl* with additional arguments. Vivado will execute *build.tcl* where the main build configuration file *config.dict* will be read to obtain all settings for the build.
 
 ### project.cfg
-Optional configuration file for the build scripts. Sets variables to replace placeholder strings in copied template files and stores project name and flavors of the project. If *project.cfg* is not located in the project's base folder or has a different name, you may use the *-p* argument of `add_flavor.sh` and `build.sh` to target the configuration file.
+Optional configuration file for the build scripts to be placed in the project's base directory. Sets variables to replace placeholder strings in copied template files and stores project name and flavors of the project. If *project.cfg* is not located in the project's base folder or has a different name, you may use the *-p* argument of `add_flavor.sh` and `build.sh` to target the configuration file. A template configuration file may be copied from *scripts/templates/project.cfg*.
 
 ### config.dict
 *config.dict* is a TCL dictionary with build settings as white space separated key-value tupels. Unused dictionary entries may be removed unless otherwise noted. There may exist multiple *<config>.dict* files that define different build settings/filesets and a specific one may be used for the build by using the *-c* option of `build.sh`.
 ***
-It defines mandatory parameters (MDT_PARAMS) such as Vivado version or FPGA part number which will be set initially by `add_flavor.sh`. **Do not modify** key-names in MDT_PARAMS.
+It defines mandatory parameters (MDT_PARAMS) such as Vivado version or FPGA part number which will be set initially by `add_flavor.sh`.
 
 Example:
 
