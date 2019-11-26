@@ -32,10 +32,16 @@
 
 puts "Start hook script 'Pre-Synthesis' ..."
 
-set project_dir   "[file normalize "[pwd]/../.."]"
-set bvars_file    "[file normalize "${project_dir}/bvars.dict"]"
-set hooks_dir     "[file dirname [info script]]"
-set helper_script "[file normalize "${hooks_dir}/../helper.tcl"]"
+set project_dir [file normalize "[pwd]/../.."]
+set bvars_file [get_files -quiet "bvars.dict"]
+if {"${bvars_file}" == ""} {
+    set bvars_file [file normalize "${project_dir}/bvars.dict"]
+}
+set helper_script [get_files -quiet "helper.tcl"]
+if {"${helper_script}" == ""} {
+    set hooks_dir [file dirname [info script]]
+    set helper_script [file normalize "${hooks_dir}/../helper.tcl"]
+}
 
 source $helper_script
 

@@ -249,7 +249,10 @@ proc exec_usr_hooks {build_step bvars} {
             set usr_hooks_dict [dict get $hooks_dict $build_step]
             foreach hook $usr_hooks_dict {
                 puts "Sourcing user-hook ${hook} for step $build_step"
-                if {[file exists "${hook}"]} {
+                set hook_utils_file [get_files -quiet [file tail $hook]]
+                if {"${hook_utils_file}" != ""} {
+                    source "${hook_utils_file}"
+                } elseif {[file exists "${hook}"]} {
                     source "${hook}"
                 } else {
                     puts "WARNING: User-hook file does not exist: ${hook}"

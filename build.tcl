@@ -348,6 +348,14 @@ if {$start_step == $build_steps(prj)} {
     }
     set fileset_sim [get_filesets $fileset_sim_name]
 
+    if {[package vcompare [version -short] 2018.3] >= 0} {
+        set fileset_utils [current_fileset "utils_1"]
+
+        add_files -fileset $fileset_utils -norecurse $helper_tcl_file
+        add_files -fileset $fileset_utils -norecurse $bvars_file
+    }
+
+
     # Process .f and return filelist
     proc process_filelist {filelist_path files_dir} {
         set filelist    [list]
@@ -716,18 +724,28 @@ if {$start_step == $build_steps(prj)} {
 
         set hooks [dict get $bvars_dict "HOOKS"]
         dict for {build_step filenames} $hooks {
+            if {[info exists fileset_utils]} {
+                foreach file $filenames {
+                    add_files -fileset $fileset_utils -norecurse $file
+                }
+            }
+
             if {[string match "viv_sim_pre" $build_step]} {
                 # Simulation pre
                 set hook_dest "${project_dir}/hooks/viv_sys_sim_pre.tcl"
                 copy_sub $hook_src $hook_dest "<HOOK_STEP>" $build_step
-
+                if {[info exists fileset_utils]} {
+                    add_files -fileset $fileset_utils -norecurse $hook_dest
+                }
                 set_property -name "${target_simulator_lc}.compile.tcl.pre" \
                         -value $hook_dest -objects $fileset_sim
             } elseif {[string match "viv_sim_post" $build_step]} {
                 # Simulation post
                 set hook_dest "${project_dir}/hooks/viv_sys_sim_post.tcl"
                 copy_sub $hook_src $hook_dest "<HOOK_STEP>" $build_step
-
+                if {[info exists fileset_utils]} {
+                    add_files -fileset $fileset_utils -norecurse $hook_dest
+                }
                 set_property -name "${target_simulator_lc}.simulate.tcl.post" \
                         -value $hook_dest -objects $fileset_sim
             } elseif {[string match "viv_impl_*" $build_step]} {
@@ -738,28 +756,35 @@ if {$start_step == $build_steps(prj)} {
 
                 set hook_dest "${project_dir}/hooks/viv_sys_impl_${step_impl}.${step_prefix}.tcl"
                 copy_sub $hook_src $hook_dest "<HOOK_STEP>" $build_step
-
+                if {[info exists fileset_utils]} {
+                    add_files -fileset $fileset_utils -norecurse $hook_dest
+                }
                 set_property steps.${step_impl}.tcl.${step_prefix} $hook_dest \
                         $run_impl
             } elseif {[string match "viv_bit_post" $build_step]} {
                 # Bitstream post
                 set hook_dest "${project_dir}/hooks/viv_sys_bit_post.tcl"
                 copy_sub $hook_src $hook_dest "<HOOK_STEP>" $build_step
-
+                if {[info exists fileset_utils]} {
+                    add_files -fileset $fileset_utils -norecurse $hook_dest
+                }
                 set_property steps.write_bitstream.tcl.post $hook_dest $run_impl
             }
         }
     }
 
-    # Synthesis pre/post
-    set_property steps.synth_design.tcl.pre "[file normalize \
-            "${scripts_dir}/hooks/viv_sys_synth_pre.tcl"]" $run_synth
-    set_property steps.synth_design.tcl.post "[file normalize \
-            "${scripts_dir}/hooks/viv_sys_synth_post.tcl"]" $run_synth
-
-    # Bitstream pre
-    set_property steps.write_bitstream.tcl.pre "[file normalize \
-            "${scripts_dir}/hooks/viv_sys_bit_pre.tcl"]" $run_impl
+    # Vivado Hooks
+    set syn_pre [file normalize "${scripts_dir}/hooks/viv_sys_synth_pre.tcl"]
+    set syn_post [file normalize "${scripts_dir}/hooks/viv_sys_synth_post.tcl"]
+    set bit_pre [file normalize "${scripts_dir}/hooks/viv_sys_bit_pre.tcl"]
+    if {[info exists fileset_utils]} {
+        add_files -fileset $fileset_utils -norecurse $syn_pre
+        add_files -fileset $fileset_utils -norecurse $syn_post
+        add_files -fileset $fileset_utils -norecurse $bit_pre
+    }
+    set_property steps.synth_design.tcl.pre $syn_pre $run_synth
+    set_property steps.synth_design.tcl.post $syn_post $run_synth
+    set_property steps.write_bitstream.tcl.pre $bit_pre $run_impl
 
     ############################################################################
 

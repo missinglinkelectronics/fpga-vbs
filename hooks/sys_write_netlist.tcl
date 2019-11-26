@@ -29,7 +29,10 @@
 ################################################################################
 
 set project_dir "[file normalize [pwd]]"
-set bvars_file "[file normalize "${project_dir}/bvars.dict"]"
+set bvars_file [get_files -quiet "bvars.dict"]
+if {"${bvars_file}" == ""} {
+    set bvars_file [file normalize "${project_dir}/bvars.dict"]
+}
 
 set bvars [restore_dict $bvars_file]
 set base_dir [dict get $bvars "BDIR"]
