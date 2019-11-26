@@ -71,8 +71,10 @@ It defines mandatory parameters (MDT_PARAMS) such as Vivado version or FPGA part
 Example:
 
     MDT_PARAMS {
-        req_vivado_vers 2017.4
-        part xc7z045ffg900-2
+        req_vivado_vers "2019.1"
+        target_language "Verilog"
+        default_lib "xil_defaultlib"
+        part "xc7z045ffg900-2"
     }
 ***
 Also the fileset to be used for the build will be set by keys. Each 'filelist'-'directory' tupel adds a filelist (f-file) and a directory path relative to the flavor sub-directory where the source files are located to the *SET*. When a *SET* is unused, it may be removed.
@@ -129,6 +131,7 @@ Example:
     }
 ***
 Set miscellaneous/optional parameters using the OPT_PARAMS key.
+* fpga_top: FPGA design top level module name
 * debug_target: Constraints file to be marked as 'target' by Vivado. If the file does not exist, it will be created local to the project (with name 'debug.xdc' for an empty string)
 * board: FPGA board part
 * xpr_name: Vivado project name
@@ -138,6 +141,7 @@ Set miscellaneous/optional parameters using the OPT_PARAMS key.
 Example:
 
     OPT_PARAMS {
+        hdl_top_module_name "fpga_top"
         debug_target "debug.xdc"
         board "xilinx.com:zc706:part0:1.3"
         xpr_name "myproject"

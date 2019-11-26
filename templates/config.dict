@@ -3,7 +3,7 @@
 ################################################################################
 
 # Configuration Dictionary File Version
-CDF_VER "1.1.1"
+CDF_VER "1.2.0"
 
 ## Project parameters
 # Override project.cfg project name
@@ -12,16 +12,12 @@ PRJ_NAME "prj0"
 MDT_PARAMS {
     # Vivado toolchain version string e.g. 2017.4
     req_vivado_vers "<VIVADO_VERSION>"
-    # Vivado toolchain version year string e.g. 2017
-    vivado_year "<VIVADO_YEAR>"
     # Target language e.g. Verilog (or VHDL)
     target_language "<TARGET_LANGUAGE>"
     # Default library e.g. xil_defaultlib
     default_lib "<DEFAULT_LIB>"
     # FPGA part number e.g. xc7z045ffg900-2
     part "<PART>"
-    # FPGA design top level module name e.g fpga_top
-    hdl_top_module_name "<FPGA_TOP>"
 }
 
 # Fileset: 'filelist' and 'directory' tupels both as paths relative to flavor.
@@ -61,6 +57,8 @@ TCL_SET {
 
 # Optional
 #OPT_PARAMS {
+#    # FPGA design top level module name e.g fpga_top
+#    hdl_top_module_name "fpga_top"
 #    # Debug target constraints file. If the file does not exist, it will be
 #    # created local to the project (with name 'debug.xdc' for an empty string)
 #    debug_target ""

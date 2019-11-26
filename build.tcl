@@ -229,6 +229,7 @@ if {[lsearch -exact $req_vivado_vers $vivado_version] < 0} {
     puts -nonewline "WARNING: You are using Vivado '$vivado_version' and not "
     puts "the recommended '[lindex $req_vivado_vers 0]'!"
 }
+set vivado_year [lindex [split "${vivado_version}" "."] 0]
 
 ################################################################################
 ## Check simulation environment
@@ -649,8 +650,10 @@ if {$start_step == $build_steps(prj)} {
 
     ############################################################################
 
-    puts "Setting ${hdl_top_module_name} as top-level module ..."
-    set_property top $hdl_top_module_name $fileset_sources
+    if {[info exists hdl_top_module_name]} {
+        puts "Setting ${hdl_top_module_name} as top-level module ..."
+        set_property top $hdl_top_module_name $fileset_sources
+    }
 
     puts "Updating compile order on fileset_sources ..."
     update_compile_order -fileset $fileset_sources
