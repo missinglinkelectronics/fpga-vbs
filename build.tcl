@@ -1068,7 +1068,14 @@ if {$start_step <= $build_steps(synth_ooc) && \
     } else {
         puts "Syntax Check for fileset [current_fileset] passed"
     }
-    set run_list [get_runs -filter "IS_SYNTHESIS == true && NAME != $run_synth"]
+    foreach bd [get_files -quiet "*.bd"] {
+        if {![get_property IS_GENERATED [get_files $bd]]} {
+            generate_target all $bd
+            create_ip_run $bd
+        }
+    }
+    set run_list [get_runs -quiet \
+            -filter "IS_SYNTHESIS == true && NAME != $run_synth"]
     if {[llength $run_list] != 0} {
         foreach run $run_list {
             reset_run $run
