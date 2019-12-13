@@ -61,7 +61,7 @@ SCRIPT_DIR="$(dirname "$(readlink -e "$0")")"
 BASE_DIR="$(dirname "${SCRIPT_DIR}")"
 
 # Use Base Dir argument if set
-BASE_DIR_ARG=$(echo $@ | sed -n -e 's/^.*-b//p' | cut -d' ' -f 2)
+BASE_DIR_ARG=$(echo $@ | sed -n -e 's/^.*-b //p' | cut -d' ' -f 1)
 if [ ! -z "${BASE_DIR_ARG}" ]; then
     BASE_DIR=$(readlink -m "$BASE_DIR_ARG")
 fi
