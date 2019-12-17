@@ -1069,7 +1069,7 @@ if {$start_step <= $build_steps(synth_ooc) && \
         puts "Syntax Check for fileset [current_fileset] passed"
     }
     foreach bd [get_files -quiet "*.bd"] {
-        if {![get_property IS_GENERATED [get_files $bd]]} {
+        if {![get_property IS_GENERATED $bd]} {
             generate_target all $bd
             create_ip_run $bd
         }
