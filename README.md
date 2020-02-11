@@ -254,6 +254,15 @@ Example:
             types {verilog vhdl}
         }
     }
+***
+Synthesis and Implementation strategies may be set using the SYNTH_STRAT and IMPL_STRAT key.
+
+Example:
+
+    IMPL_STRAT {
+        strategy Performance_ExplorePostRoutePhysOpt
+        STEPS.PHYS_OPT_DESIGN.ARGS.DIRECTIVE AggressiveExplore
+    }
 ### build.sh
 Run `build.sh` in a Vivado environment to issue the build process.
 

@@ -3,7 +3,7 @@
 ################################################################################
 
 # Configuration Dictionary File Version
-CDF_VER "1.2.0"
+CDF_VER "1.3.0"
 
 ## Project parameters
 # Override project.cfg project name
@@ -184,4 +184,14 @@ TCL_SET {
 #    module1_instance_name {
 #        types {verilog vhdl}
 #    }
+#}
+
+# Synthesis/Implementation strategies
+#SYNTH_STRAT {
+#    strategy Flow_PerfOptimized_high
+#}
+#IMPL_STRAT {
+#    strategy Performance_ExplorePostRoutePhysOpt
+#    STEPS.PLACE_DESIGN.ARGS.DIRECTIVE ExtraTimingOpt
+#    STEPS.PHYS_OPT_DESIGN.ARGS.DIRECTIVE AggressiveExplore
 #}
