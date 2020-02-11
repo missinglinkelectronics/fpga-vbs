@@ -1018,27 +1018,20 @@ if {$start_step == $build_steps(package) || \
         ipx::save_core                  [ipx::current_core]
         ipx::check_integrity -quiet     [ipx::current_core]
 
+        set zip_file "${root_dir}/${result_base}_${zip_name}"
+        ipx::archive_core "${zip_file}" [ipx::current_core]
+
+        # Wait 1 second so that 'zip -u' sees a newer timestamp
+        after 1000
         # Insert result_base into component.xml
-        cd "${root_dir}"
-        set zip_file "${result_base}_${zip_name}"
-        set str "xmlns:vbs=\"${result_base}\""
-        set fd [open "component.xml" r+]
-        set buf [read $fd]
-        set lines [split $buf "\n"]
-        set line1 [lindex $lines 1]
-        set line1 [split $line1 " "]
-        set line1 [linsert $line1 1 $str]
-        set line1 [join $line1 " "]
-        set lines [lreplace $lines 1 1 $line1]
-        set buf [join $lines "\n"]
-        seek $fd 0
-        puts $fd $buf
-        close $fd
-        exec zip -r "${zip_file}" "component.xml" "src" "xgui"
-        file copy -force -- "${zip_file}" "[file normalize "${project_dir}/"]"
-        file delete -force -- "${zip_file}"
-        set zip_file "[file normalize "${project_dir}/${zip_file}"]"
-        cd "${project_dir}"
+        if {[catch {exec sed -i "s|<spirit:component|<spirit:component\
+                xmlns:vbs=\"$result_base\"|" "${root_dir}/component.xml"}]} {
+            puts "ERROR: Updating component.xml failed ($result)"
+        }
+        if {[catch {exec zip -ju "${root_dir}/${result_base}_${zip_name}" \
+                "${root_dir}/component.xml"}]} {
+            puts "ERROR: Updating zip file failed ($result)"
+        }
 
         puts "Done packaging project in IP-XACT format. Output file ${zip_file}"
         dict set bvars BCOMMIT $bcommit
