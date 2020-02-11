@@ -826,6 +826,7 @@ foreach tcl_file $tcl_files {
 ################################################################################
 ## Generate simulation scripts
 if {$start_step == $build_steps(sim_prep) || $end_step == $build_steps(sim_prep)} {
+    set end_step $build_steps(sim_prep)
     puts "INFO: Generate simulation scripts"
     set sim_set [current_fileset -simset]
     update_compile_order -fileset $sim_set
@@ -833,25 +834,23 @@ if {$start_step == $build_steps(sim_prep) || $end_step == $build_steps(sim_prep)
     set simscripts_dir "[file normalize \
         "${project_dir}/${xpr_name}.sim/${sim_set}/behav/${target_simulator_lc}/"]"
     puts "INFO: Simulation scripts generated in '${simscripts_dir}'"
-
-    exit 0
 }
 
 ################################################################################
 ## Run simulation
 if {$start_step == $build_steps(sim) || $end_step == $build_steps(sim)} {
+    set end_step $build_steps(sim)
     puts "INFO: Start simulation"
     update_compile_order -fileset [current_fileset -simset]
     launch_simulation
     puts "Running simulation ..."
-
-    exit 0
 }
 
 ################################################################################
 ## IP-XACT package project
 if {$start_step == $build_steps(package) || \
     $end_step   == $build_steps(package)} {
+    set end_step $build_steps(package)
     puts "Package project in IP-XACT format"
     puts "Running Syntax Check ..."
     set cs [check_syntax -return_string -quiet]
@@ -1038,8 +1037,6 @@ if {$start_step == $build_steps(package) || \
         dict set bvars BCTYPE  $bctype
         dict set bvars ZIPFILE $zip_file
         save_dict "${bvars_file}" $bvars_dict
-
-        exit 0
     } else {
         puts "ERROR: Key 'PACKAGE_IP' not found in dictionary"
         exit 2
