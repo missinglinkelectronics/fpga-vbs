@@ -39,12 +39,13 @@ proc _get_ip_config_usage {} {
     puts "\nDescription:"
     puts "Extract IP TCL properties\n"
     puts "Syntax:"
-    puts "get_ip_config -ip <arg> \[-outfile <arg>\] \[-help\]\n"
+    puts "get_ip_config -ip <arg> \[-outfile <arg>\] \[-target <arg>\] \[-help\]\n"
     puts "Options:"
     puts "Name               Description"
     puts "------------------------------"
     puts "-ip                IP component name"
     puts "-outfile           Output file"
+    puts "-target            BD or IP (Default 'IP')"
     puts "-help              Print usage\n"
     return
 }
@@ -57,6 +58,7 @@ proc get_ip_config {args} {
     ## Parse arguments
     set ip_comp ""
     set outfile ""
+    set target "ip"
     dict for {option value} $args {
         switch $option {
             "-ip" {
@@ -64,6 +66,9 @@ proc get_ip_config {args} {
             }
             "-outfile" {
                 set outfile "[file normalize "${value}"]"
+            }
+            "-target" {
+                set target [string tolower "${value}"]
             }
             default {
                 puts "Unknown option '${option}'"
@@ -86,6 +91,10 @@ proc get_ip_config {args} {
     if {"$outfile" != "" && ![file isdirectory [file dirname $outfile]]} {
         puts "Target output directory '[file dirname $outfile]' does not exist"
         return
+    }
+    if {"$target" != "ip" && "$target" != "bd"} {
+      puts "Invalid target '$target'"
+      return
     }
 
     set ip_def  [get_property IPDEF "${ip}"]
@@ -120,8 +129,12 @@ proc get_ip_config {args} {
     puts $fd ""
 
     puts $fd "set module_name {[file tail [file rootname ${outfile}]]}"
-    puts $fd [subst -nobackslashes "create_ip -name ${ip_name} -vendor ${vendor} -library ${library} \\"]
-    puts $fd "        -version ${version} -module_name \"\${module_name}\""
+    if {"$target" == "bd"} {
+        puts $fd "create_bd_cell -type ip -vlnv ${ip_def} \"\${module_name}\""
+    } else {
+        puts $fd [subst -nobackslashes "create_ip -name ${ip_name} -vendor ${vendor} -library ${library} \\"]
+        puts $fd "        -version ${version} -module_name \"\${module_name}\""
+    }
     puts $fd [subst -nobackslashes -nocommands "set_property -dict \[list \\"]
     foreach prop "${properties}" {
         set val [get_property "${prop}" "${ip}"]
@@ -129,20 +142,23 @@ proc get_ip_config {args} {
             puts $fd [subst -nobackslashes "    ${prop} {${val}} \\"]
         }
     }
-    puts $fd "\] \[get_ips \"\${module_name}\"\]"
-    puts $fd ""
-    puts $fd [subst -nobackslashes "generate_target { \\"]
-    puts $fd [subst -nobackslashes "    instantiation_template \\"]
-    puts $fd [subst -nobackslashes "    simulation \\"]
-    puts $fd [subst -nobackslashes "    synthesis \\"]
-    puts $fd "} \[get_ips \"\${module_name}\"\]"
-    puts $fd "# Other targets:"
-    puts $fd "#   example"
-    puts $fd ""
-    puts $fd "create_ip_run \[get_ips \"\${module_name}\"\]"
-    puts $fd "# Instead of above, for no Out-Of-Context run:"
-    puts $fd "# set_property generate_synth_checkpoint false \[get_files \"\${module_name}.xci\"\]"
-
+    if {"$target" == "bd"} {
+        puts $fd "\] \[get_bd_cells \"\${module_name}\"\]"
+    } else {
+        puts $fd "\] \[get_ips \"\${module_name}\"\]"
+        puts $fd ""
+        puts $fd [subst -nobackslashes "generate_target { \\"]
+        puts $fd [subst -nobackslashes "    instantiation_template \\"]
+        puts $fd [subst -nobackslashes "    simulation \\"]
+        puts $fd [subst -nobackslashes "    synthesis \\"]
+        puts $fd "} \[get_ips \"\${module_name}\"\]"
+        puts $fd "# Other targets:"
+        puts $fd "#   example"
+        puts $fd ""
+        puts $fd "create_ip_run \[get_ips \"\${module_name}\"\]"
+        puts $fd "# Instead of above, for no Out-Of-Context run:"
+        puts $fd "# set_property generate_synth_checkpoint false \[get_files \"\${module_name}.xci\"\]"
+    }
     close $fd
     puts "Written file '${outfile}'"
 }
