@@ -288,7 +288,6 @@ proc dict_val4key {key dictionary} {
         if {[dict exists $dictionary $key]} {
             return [dict get $dictionary $key]
         } else {
-            puts "WARNING: Key ${key} not found in dictionary"
             return ""
         }
     } else {
@@ -297,7 +296,6 @@ proc dict_val4key {key dictionary} {
         if {[dict exists $dictionary $sub_key]} {
             set sub_dict [dict get $dictionary $sub_key]
         } else {
-            puts "WARNING: Key ${sub_key} not found in dictionary"
             return ""
         }
 

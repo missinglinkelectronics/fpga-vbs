@@ -236,6 +236,18 @@ set vivado_year [lindex [split "${vivado_version}" "."] 0]
 
 if {[catch {set pre_comp_simlib_dir $::env(PRECOMP_SIM_LIBS)}]} {
     puts "INFO: Simulation environment variable PRECOMP_SIM_LIBS not set"
+    set lib_compile [dict_val4key "SIM_PARAMS:LIB_COMPILE" $config_dict]
+    if {$lib_compile != ""} {
+        # Set pre_comp_simlib_dir to the LIB_COMPILE directory or default path
+        if {[dict exists $lib_compile "directory"]} {
+            set pre_comp_simlib_dir [file normalize \
+                "$flavor_dir/[dict get $lib_compile "directory"]"]
+        } else {
+            set pre_comp_simlib_dir "$flavor_dir/sim/sim_libs"
+        }
+        file mkdir $pre_comp_simlib_dir
+        puts "INFO: Using ${pre_comp_simlib_dir} as PRECOMP_SIM_LIBS"
+    }
 } else {
     set pre_comp_simlib_dir "[file normalize "${pre_comp_simlib_dir}"]"
     puts "INFO: Simulation environment variable set to '${pre_comp_simlib_dir}'"
@@ -824,10 +836,52 @@ foreach tcl_file $tcl_files {
 }
 
 ################################################################################
-## Generate simulation scripts
+## Generate simulation scripts and compile simulation libraries
 if {$start_step == $build_steps(sim_prep) || $end_step == $build_steps(sim_prep)} {
     set end_step $build_steps(sim_prep)
-    puts "INFO: Generate simulation scripts"
+    puts "INFO: Generate simulation scripts and compile simulation libraries"
+
+    if {$target_simulator_lc != "xsim"} {
+        set lib_compile [dict_val4key "SIM_PARAMS:LIB_COMPILE" $config_dict]
+        if {$lib_compile == ""} {
+            puts "WARNING: Missing LIB_COMPILE key in dictionary.\
+                  Will not compile simulation libraries"
+        } else {
+            set cmd_args [list \
+                "-force" \
+                "-simulator" ${target_simulator_lc} \
+            ]
+            if {[dict exists $lib_compile "directory"]} {
+                set directory "$flavor_dir/[dict get $lib_compile "directory"]"
+            } else {
+                set directory "$flavor_dir/sim/sim_libs"
+            }
+            lappend cmd_args "-directory" [file normalize "${directory}"]
+            # If the key does not exist, then no argument will be appended and
+            # Vivado uses the default
+            catch {
+                lappend cmd_args "-family" \
+                    [string tolower [dict get $lib_compile "family"]]
+            }
+            catch {
+                lappend cmd_args "-language" \
+                    [string tolower [dict get $lib_compile "language"]]
+            }
+            if {[dict exists $lib_compile "libraries"]} {
+                foreach lib [dict get $lib_compile "libraries"] {
+                    lappend cmd_args "-library" [string tolower $lib]
+                }
+            }
+            if {[dict exists $lib_compile "no_ip_compile"]} {
+                if {[string tolower [dict get $lib_compile "no_ip_compile"]] == "true"} {
+                    lappend cmd_args "-no_ip_compile"
+                }
+            }
+            puts "INFO: Running command 'compile_simlib ${cmd_args}'"
+            eval "compile_simlib ${cmd_args}"
+        }
+    }
+
     set sim_set [current_fileset -simset]
     update_compile_order -fileset $sim_set
     launch_simulation -scripts_only

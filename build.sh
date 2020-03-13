@@ -54,7 +54,7 @@
 
 ################################################################################
 # Configuration Dictionary File Version
-CDF_VER="1.2.0"
+CDF_VER="1.4.0"
 
 # Paths relative to build.sh
 SCRIPT_DIR="$(dirname "$(readlink -e "$0")")"

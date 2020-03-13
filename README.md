@@ -153,12 +153,18 @@ Example:
     }
 ***
 Set simulation specific parameters using the SIM_PARAMS key.
-* Simulation top level test bench file
-* Simulation time with unit
-* Enable logging of all signals
-* Simulation waveform file
-* Simulator language e.g. Mixed/Verilog/VHDL
-* Vivado compatible simulation tool e.g. XSim/ModelSim/Questa/IES/VCS/Riviera
+* sim_top_module_name: Simulation top level test bench file
+* sim_time: Simulation time with unit
+* sim_log_all: Enable logging of all signals
+* sim_wave_do: Simulation waveform file
+* simulator_language: Simulator language e.g. Mixed/Verilog/VHDL
+* target_simulator: Vivado compatible simulation tool e.g. XSim/ModelSim/Questa/IES/VCS/Riviera
+* LIB_COMPILE: Compile simulation libraries with build step **sim_prep**. Remove keys if default values shall be used. Empty string is an invalid value (see compile_simlib -help for other values).
+    * directory: Target directory relative to flavor (default: flavor/sim/libs)
+    * family: Device architecture (default: all)
+    * language: Target language (default: all)
+    * libraries: Libraries to compile (default: all)
+    * no_ip_compile: Do not compile IPs (default: false)
 
 Example:
 
@@ -169,9 +175,16 @@ Example:
         sim_wave_do "tb_top_wave.do"
         simulator_language "Mixed"
         target_simulator "Questa"
+        LIB_COMPILE {
+            directory {../build/sim_libs}
+            family {zynquplus}
+            language {VHDL}
+            libraries {unisim}
+            no_ip_compile {true}
+        }
     }
 
-Note: The absolute path to precompiled simulation libraries for other simulators than XSim may be set as environment variable PRECOMP_SIM_LIBS.
+Note: The absolute path to pre-compiled simulation libraries for other simulators than XSim may be set as environment variable PRECOMP_SIM_LIBS. If PRECOMP_SIM_LIBS is not set, but LIB_COMPILE key is set, then the *directory* (or default path) will be used as PRECOMP_SIM_LIBS path.
 ***
 Configure IPXACT IP core generation using the PACKAGE_IP key.
 * ident: Mandatory IP core identification section. See package IP GUI in Vivado
