@@ -307,12 +307,51 @@ if [ -z ${CONFIG_DICT_NAME} ]; then
     fi
 fi
 
+# Merge all dictionaries included by /include/ statement
+merge_dicts() {
+    DICT=$DICT_DIR/
+    DICT+=$1
+    if [ ! -f $DICT ]; then
+        echo ""
+        return 1
+    fi
+    MERGE_DICT=""
+    INCL_FILES=`grep "/include/" $DICT | sed -e '/^[ \t]*#/d' | \
+        cut -d ' ' -f 2 | sed 's|"||g'`
+    echo ""
+    cat $DICT | sed -e '/^[ \t]*#/d'
+    if [ -z "${INCL_FILES}" ]; then
+        return 0
+    fi
+    for INCL_FILE in $INCL_FILES; do
+        MERGE_DICT+=`merge_dicts $INCL_FILE`
+        [ ! $? -eq 0 ] && echo "" && return 1
+    done
+    echo $MERGE_DICT
+    return 0
+}
+MDICT=`merge_dicts "$CONFIG_DICT_NAME"`
+[ $? -gt 0 ] && echo "ERROR: Parsing dictionary include files failed" && exit 1
+MDICT=( $MDICT )
+
+# Get value for key in dictionary. Least value for duplicate keys
+get_value4key() {
+    KEY=$1
+    shift
+    DICT=("$@")
+    VALUE=""
+    for i in "${!DICT[@]}"; do
+        if [ "${DICT[$i]}" == "${KEY}" ]; then
+            VALUE=`echo ${DICT[$i + 1]} | sed 's|"||g'`
+        fi
+    done
+    echo $VALUE
+    return 0
+}
+
 # Parse version string in configuration dictionary
-DICT_CDF_VER_STR=`cat "$DICT_DIR/$CONFIG_DICT_NAME" | \
-    sed -n -e '/^CDF_VER[ ]*["{]\?[0-9]\+\.[0-9]\+\.[0-9]\+\(-[_a-zA-Z]*\)\?[ "}]\?$/p'`
-if [ ! -z "${DICT_CDF_VER_STR}" ]; then
-    DICT_CDF_VER=`echo "$DICT_CDF_VER_STR" | \
-        sed 's/^CDF_VER//;s/[ "{}]//g'`
+DICT_CDF_VER=`get_value4key "CDF_VER" "${MDICT[@]}"`
+if [ ! -z "${DICT_CDF_VER}" ]; then
     DICT_CDF_VER_MAJOR=`echo "$DICT_CDF_VER" | cut -d '.' -f 1`
     DICT_CDF_VER_MINOR=`echo "$DICT_CDF_VER" | cut -d '.' -f 2`
 else
@@ -342,7 +381,7 @@ fi
 # Check if build.sh "-p" option already set the project name
 if [ -z "${PRJ_NAME:+x}" ]; then
     # Check for PRJ_NAME in configuration dictionary
-    PRJ_NAME=`cat "$DICT_DIR/$CONFIG_DICT_NAME" | sed -n '/^PRJ_NAME/ p' | cut -s -d \" -f 2`
+    PRJ_NAME=`get_value4key "PRJ_NAME" "${MDICT[@]}"`
     if [ -z "${PRJ_NAME}" ]; then
         # Check for PRJ_NAME being defined in project configuration file
         PRJ_CFG="${BASE_DIR}/project.cfg"
