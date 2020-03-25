@@ -295,12 +295,14 @@ if {$start_step == $build_steps(prj)} {
     set fileset_sources_name "sources_1"
     set fileset_sim_name     "sim_1"
 
-    if {![info exists board]} {
-        set board ""
-    }
 
     puts "Creating project \"$xpr_name\" in $project_dir"
-    puts "Using $part FPGA on the $board board"
+    if {![info exists board]} {
+        set board ""
+        puts "Using a $part FPGA on an unspecified board"
+    } else {
+        puts "Using a $part FPGA on the $board board"
+    }
 
     puts "Create filesets constraints, source, simulation"
     create_project $xpr_name $project_dir -part $part -force
