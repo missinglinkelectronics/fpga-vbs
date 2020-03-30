@@ -850,7 +850,6 @@ if {$start_step == $build_steps(sim_prep) || $end_step == $build_steps(sim_prep)
                   Will not compile simulation libraries"
         } else {
             set cmd_args [list \
-                "-force" \
                 "-simulator" ${target_simulator_lc} \
             ]
             if {[dict exists $lib_compile "directory"]} {
@@ -880,7 +879,7 @@ if {$start_step == $build_steps(sim_prep) || $end_step == $build_steps(sim_prep)
                 }
             }
             puts "INFO: Running command 'compile_simlib ${cmd_args}'"
-            eval "compile_simlib ${cmd_args}"
+            catch {eval "compile_simlib ${cmd_args}"}
         }
     }
 
