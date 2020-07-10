@@ -80,6 +80,12 @@ if {![catch {glob ${run_impl_dir}/*.ltx} ltx_gen_file]} {
     file copy -force -- "${ltx_gen_file}" "${ltx_out_file}"
 }
 
+# XSA file with bitstream included
+set xsa_path "[file normalize "${project_dir}/${result_base}.xsa"]"
+if {[package vcompare [version -short] 2019.2] >= 0} {
+    write_hw_platform -fixed -force -quiet -include_bit "${xsa_path}"
+}
+
 ################################################################################
 
 puts "Script 'Post-Bitstream' done."

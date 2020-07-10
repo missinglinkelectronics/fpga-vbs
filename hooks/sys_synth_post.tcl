@@ -64,11 +64,14 @@ if [file exists $synth_log_gen_path] {
     file copy -force -- $synth_log_gen_path $synth_log_path
 }
 
-# Generate HDF file
+# Generate HDF and XSA file
 set hdf_path "[file normalize "${project_dir}/${result_base}.hdf"]"
+set xsa_path "[file normalize "${project_dir}/${result_base}_minimal.xsa"]"
 
 # Prevent Vivado error using the -quiet option
-if {[package vcompare [version -short] 2015.3] >= 0} {
+if {[package vcompare [version -short] 2019.2] >= 0} {
+    write_hw_platform -fixed -force -quiet -minimal "${xsa_path}"
+} elseif {[package vcompare [version -short] 2015.3] >= 0} {
     write_hwdef -quiet "${hdf_path}"
 } else {
     write_hwdef -quiet -file "${hdf_path}"
