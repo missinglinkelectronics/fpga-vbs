@@ -54,7 +54,7 @@ set result_base [dict get $bvars "RBASE"]
 
 # Update result base timestamp if build starts with implementation step to
 # prevent the overwriting of output products.
-if {$start_step == 5} {
+if {$start_step == 7} {
     set rbase_split [split $result_base "_"]
 
     # String index 0 to 2 is project, flavor, config
