@@ -176,6 +176,15 @@ if {[dict exists $config_dict "SIM_PARAMS"]} {
     }
 }
 
+# Set global TCL variables
+if {[dict exists $config_dict "TCL_GLOBALS"]} {
+    set tcl_globals [dict get $config_dict "TCL_GLOBALS"]
+    dict for {key val} $tcl_globals {
+        global "${key}"
+        set "${key}" "${val}"
+    }
+}
+
 ################################################################################
 ## Setup hook scripts
 

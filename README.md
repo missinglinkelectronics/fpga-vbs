@@ -186,6 +186,15 @@ Example:
 
 Note: The absolute path to pre-compiled simulation libraries for other simulators than XSim may be set as environment variable PRECOMP_SIM_LIBS. If PRECOMP_SIM_LIBS is not set, but LIB_COMPILE key is set, then the *directory* (or default path) will be used as PRECOMP_SIM_LIBS path.
 ***
+Set global TCL variables using the TCL_GLOBALS key.
+
+Example:
+
+    TCL_GLOBALS {
+        variable0 value0
+        variable1 value1
+    }
+***
 Configure IPXACT IP core generation using the PACKAGE_IP key.
 * ident: Mandatory IP core identification section. See package IP GUI in Vivado
     * bd_name: Package block design - leave empty for non-BD based projects

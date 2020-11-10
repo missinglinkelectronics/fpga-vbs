@@ -210,3 +210,9 @@ TCL_SET {
 #    STEPS.PLACE_DESIGN.ARGS.DIRECTIVE ExtraTimingOpt
 #    STEPS.PHYS_OPT_DESIGN.ARGS.DIRECTIVE AggressiveExplore
 #}
+
+# Global TCL variables
+#TCL_GLOBALS {
+#    variable0 value0
+#    variable1 value1
+#}
