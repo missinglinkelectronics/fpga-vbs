@@ -255,7 +255,8 @@ proc exec_usr_hooks {build_step bvars} {
                 } elseif {[file exists "${hook}"]} {
                     source "${hook}"
                 } else {
-                    puts "WARNING: User-hook file does not exist: ${hook}"
+                    puts "ERROR: User-hook file not found '$hook'"
+                    exit 2
                 }
             }
         }
