@@ -918,7 +918,7 @@ if {$start_step == $build_steps(package) || \
     puts "Package project in IP-XACT format"
     puts "Running Syntax Check ..."
     set cs [check_syntax -return_string -quiet]
-    if {[regexp {^CRITICAL WARNING:.*$} $cs] == 1} {
+    if {[regexp {CRITICAL WARNING:} $cs] == 1} {
         puts $cs
         puts "ERROR: Syntax Check failed"
         exit 2
@@ -1115,7 +1115,7 @@ if {$start_step <= $build_steps(synth_ooc) && \
     puts "Synthesizing all out of context runs ..."
     puts "Running Syntax Check ..."
     set cs [check_syntax -fileset [current_fileset] -return_string -quiet]
-    if {[regexp {^CRITICAL WARNING:.*$} $cs] == 1} {
+    if {[regexp {CRITICAL WARNING:} $cs] == 1} {
         puts $cs
         puts "ERROR: Syntax Check failed for fileset [current_fileset]"
         exit 2
