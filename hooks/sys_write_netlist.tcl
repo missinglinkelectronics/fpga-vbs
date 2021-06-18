@@ -45,7 +45,7 @@ if {![file exists "${cdict_file}"]} {
     return
 }
 
-set config_dict [restore_dict "${cdict_file}"]
+set config_dict [parse_dict [restore_dict "${cdict_file}"]]
 if {![dict exists $config_dict "WRITE_NETLISTS"]} {
     return
 }
