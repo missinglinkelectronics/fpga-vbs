@@ -57,6 +57,7 @@ proc mod_hdr {filename mod_str} {
     set lines [split $buf "\n"]
     set lines [lreplace $lines 6 6 "// VBS         : ${mod_str}"]
     seek $fd 0
+    chan truncate $fd 0
     foreach line $lines {
         puts $fd $line
     }
