@@ -110,20 +110,22 @@ dict for {inst inst_dict} [dict get $config_dict "WRITE_NETLISTS"] {
         if {$type == "edif"} {
             write_edif -force -cell "${cell}" "${build_file}.edf"
             mod_hdr "${build_file}.edf" "${result_base}"
-            write_verilog -force -mode synth_stub -cell "${cell}" \
-                    "${build_file}_synth-stub.v"
-            mod_hdr "${build_file}_synth-stub.v" "${result_base}"
-            write_vhdl -force -mode synth_stub -cell "${cell}" \
-                    "${build_file}_synth-stub.vhd"
-            mod_hdr "${build_file}_synth-stub.vhd" "${result_base}"
             if {[info exists output_file]} {
                 file copy -force -- "${build_file}.edf" "${output_file}.edf"
-                file copy -force -- "${build_file}_synth-stub.v" \
-                        "${output_file}_synth-stub.v"
-                file copy -force -- "${build_file}_synth-stub.vhd" \
-                        "${output_file}_synth-stub.vhd"
             }
         }
+    }
+    write_verilog -force -mode synth_stub -cell "${cell}" \
+            "${build_file}_synth-stub.v"
+    mod_hdr "${build_file}_synth-stub.v" "${result_base}"
+    write_vhdl -force -mode synth_stub -cell "${cell}" \
+            "${build_file}_synth-stub.vhd"
+    mod_hdr "${build_file}_synth-stub.vhd" "${result_base}"
+    if {[info exists output_file]} {
+        file copy -force -- "${build_file}_synth-stub.v" \
+                "${output_file}_synth-stub.v"
+        file copy -force -- "${build_file}_synth-stub.vhd" \
+                "${output_file}_synth-stub.vhd"
     }
 }
 
