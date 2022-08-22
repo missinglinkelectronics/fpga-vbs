@@ -86,7 +86,7 @@ dict for {inst inst_dict} [dict get $config_dict "WRITE_NETLISTS"] {
     if {[dict exists $inst_dict "output_file"]} {
         set output_file [dict get $inst_dict "output_file"]
         set output_file "[file normalize \
-                "${base_dir}/${flv_name}/${output_file}"]"
+                "${project_dir}/${output_file}"]"
     }
     if {[dict exists $inst_dict "types"]} {
         set types [dict get $inst_dict "types"]
