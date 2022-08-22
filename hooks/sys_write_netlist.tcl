@@ -51,11 +51,17 @@ if {![dict exists $config_dict "WRITE_NETLISTS"]} {
 }
 
 # Replace filename in output file header with VBS result base
-proc mod_hdr {filename mod_str} {
+proc mod_hdr {filename mod_str file_type} {
     set fd [open $filename r+]
     set buf [read $fd]
     set lines [split $buf "\n"]
-    set lines [lreplace $lines 6 6 "// VBS         : ${mod_str}"]
+    if {$file_type == "verilog"} {
+        set lines [lreplace $lines 6 6 "// VBS         : ${mod_str}"]
+    } elseif {$file_type == "vhdl"} {
+        set lines [lreplace $lines 6 6 "-- VBS         : ${mod_str}"]
+    } else {
+        puts "WARNING: Unsupported format in mod_hdr"
+    }
     seek $fd 0
     chan truncate $fd 0
     foreach line $lines {
@@ -95,21 +101,23 @@ dict for {inst inst_dict} [dict get $config_dict "WRITE_NETLISTS"] {
     foreach type $types {
         if {$type == "verilog"} {
             write_verilog -force -cell "${cell}" "${build_file}.v"
-            mod_hdr "${build_file}.v" "${result_base}"
+            mod_hdr "${build_file}.v" "${result_base}" "verilog"
             if {[info exists output_file]} {
                 file copy -force -- "${build_file}.v" "${output_file}.v"
             }
         }
         if {$type == "vhdl"} {
             write_vhdl -force -cell "${cell}" "${build_file}.vhd"
-            mod_hdr "${build_file}.vhd" "${result_base}"
+            mod_hdr "${build_file}.vhd" "${result_base}" "vhdl"
             if {[info exists output_file]} {
                 file copy -force -- "${build_file}.vhd" "${output_file}.vhd"
             }
         }
         if {$type == "edif"} {
+            # write edif creates a folder structure
+            # <build_file>.edf/<cell>/<netlist instance name.edn>
+            # no header manipulation needed
             write_edif -force -cell "${cell}" "${build_file}.edf"
-            mod_hdr "${build_file}.edf" "${result_base}"
             if {[info exists output_file]} {
                 file copy -force -- "${build_file}.edf" "${output_file}.edf"
             }
@@ -117,10 +125,10 @@ dict for {inst inst_dict} [dict get $config_dict "WRITE_NETLISTS"] {
     }
     write_verilog -force -mode synth_stub -cell "${cell}" \
             "${build_file}_synth-stub.v"
-    mod_hdr "${build_file}_synth-stub.v" "${result_base}"
+    mod_hdr "${build_file}_synth-stub.v" "${result_base}" "verilog"
     write_vhdl -force -mode synth_stub -cell "${cell}" \
             "${build_file}_synth-stub.vhd"
-    mod_hdr "${build_file}_synth-stub.vhd" "${result_base}"
+    mod_hdr "${build_file}_synth-stub.vhd" "${result_base}" "vhdl"
     if {[info exists output_file]} {
         file copy -force -- "${build_file}_synth-stub.v" \
                 "${output_file}_synth-stub.v"
