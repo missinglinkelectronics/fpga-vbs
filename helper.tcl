@@ -143,7 +143,7 @@ proc git_undo {old_branch new_branch level} {
 }
 
 proc git_exists {} {
-    if {[catch {exec git status -s &>/dev/null} result options]} {
+    if {[catch {exec git status -s >&/dev/null} result options]} {
         set ec [dict get $options -errorcode]
         if {[regexp {^POSIX ENOENT} $ec] == 1} {
             # assume no git executable found
@@ -170,7 +170,7 @@ proc git_stamp {build_branch} {
     set curbranch $result
 
     puts "Looking for changes and untracked files ..."
-    if {[catch {exec git status -s &>/dev/null} result] != 0} {
+    if {[catch {exec git status -s >&/dev/null} result] != 0} {
         puts "failed ($result)."
         return -code 1
     }
