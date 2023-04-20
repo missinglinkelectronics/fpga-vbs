@@ -11,8 +11,8 @@ if {![info exists bd_name]} {
     set bd_name [current_bd_design]
 }
 
-if {"${bd_name}" == ""} {
-    puts "ERROR: Unable to determine name of block design to generate wrapper for"
+if {![llength [get_bd_designs "${bd_name}"]]} {
+    puts "ERROR: Unable to determine block design to generate wrapper for"
     return 2
 }
 puts "INFO: Generating wrapper for block design '${bd_name}'"
