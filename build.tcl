@@ -373,9 +373,12 @@ if {$start_step == $build_steps(prj)} {
 
     if {[package vcompare [version -short] 2018.3] >= 0} {
         set fileset_utils [current_fileset "utils_1"]
+        set vbs_bd_util_file [file normalize \
+            "${scripts_dir}/util/vbs_bd_util.tcl"]
 
         add_files -fileset $fileset_utils -norecurse $helper_tcl_file
         add_files -fileset $fileset_utils -norecurse $bvars_file
+        add_files -fileset $fileset_utils -norecurse $vbs_bd_util_file
     }
 
 
