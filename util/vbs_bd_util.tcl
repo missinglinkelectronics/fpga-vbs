@@ -38,6 +38,7 @@ namespace eval vbs {
 		namespace export source_filelist
 		namespace export add_filelist
 		namespace export check_hier
+		namespace export validate_intf
 	}
 }
 
@@ -1685,6 +1686,167 @@ proc ::vbs::bd_util::add_filelist {args} {
 	}
 }
 
+# Return interface pin/port partner for interface net and pin
+proc ::vbs::bd_util::get_intf_partner_pin {intf_pin_start intf_net_start} {
+	# Get other intf pin of intf net
+	set intf_pin [get_bd_intf_pins -quiet \
+		-of_objects [get_bd_intf_nets $intf_net_start] \
+		-filter "PATH != $intf_pin_start" \
+	]
+	# Source/sink interface pins have CONFIG.* parameters
+	if {[llength $intf_pin] && [llength [list_property $intf_pin CONFIG.*]]} {
+		return $intf_pin
+	}
+	if {![llength $intf_pin]} {
+		# End of net can also be a port
+		set intf_port [get_bd_intf_ports -quiet \
+			-of_objects [get_bd_intf_nets $intf_net_start] \
+		]
+		if {[llength $intf_port]} {
+			return $intf_port
+		}
+	}
+	# Get other intf net for this intf pin
+	set intf_net [get_bd_intf_nets -quiet \
+		-of_objects [get_bd_intf_pins $intf_pin] \
+		-boundary_type both \
+		-filter "PATH != $intf_net_start" \
+	]
+	# Interfaces must not have CONFIG.* parameters
+	if {![llength $intf_net]} {
+		return $intf_pin
+	}
+	# Continue the search
+	return [get_intf_partner_pin $intf_pin $intf_net]
+}
+
+# Find source/sink interface pin/port for a given interface net
+proc ::vbs::bd_util::get_intf_pins_for_intf_net {intf_net} {
+	# Get intf pin partner partner of intf net
+	set intf_pins [get_bd_intf_pins -quiet \
+		-of_objects [get_bd_intf_nets $intf_net] \
+	]
+	# Intf ports can also be the source/sink of an intf net
+	set intf_ports [get_bd_intf_ports -quiet \
+		-of_objects [get_bd_intf_nets $intf_net] \
+	]
+	# Search for the source/sink intf pin/port in both directions of the intf
+	# net. Be aware that 'get_bd_intf_ports' finds intf ports that are not
+	# directly connected to the net.
+	if {[llength $intf_pins] > 0} {
+		set intf_pin0 [get_intf_partner_pin [lindex $intf_pins 0] $intf_net]
+	}
+	if {[llength $intf_pins] > 1} {
+		set intf_pin1 [get_intf_partner_pin [lindex $intf_pins 1] $intf_net]
+	}
+	if {[llength $intf_pins] == 1} {
+		set intf_pin1 [get_intf_partner_pin [lindex $intf_ports 0] $intf_net]
+	}
+	if {[llength $intf_pins] == 0} {
+		set intf_pin0 [get_intf_partner_pin [lindex $intf_ports 1] $intf_net]
+	}
+	return [lsort [list $intf_pin0 $intf_pin1]]
+}
+
+proc ::vbs::bd_util::validate_intf_usage {} {
+	puts "validate_intf
+
+Description:
+Validate interface properties
+
+Syntax:
+validate_intf \[-type <arg>\] \[-help\] \[<args>\]
+
+Usage:
+  Name               Description
+  ------------------------------
+  \[-type <arg>\]      Interface type (axis_rtl, aximm_rtl, ..., Default: all)
+  \[-help\]            Print usage
+  \[<args>\]           List of hierarchies
+                     Default: *"
+	return
+}
+
+# Validate interface properties
+proc ::vbs::bd_util::validate_intf {args} {
+	if {[lsearch $args "help"] >= 0 || [lsearch $args "-help"] >= 0} {
+		return [validate_intf_usage]
+	}
+	if {[catch {current_bd_design}]} {
+		return
+	}
+
+	set filter_type ""
+	set idx_opt [lsearch $args "-type"]
+	if {$idx_opt >= 0} {
+		set idx_arg [expr $idx_opt + 1]
+		set filter_type [lindex $args $idx_arg]
+		if {![llength $filter_type]} {
+			catch {
+				::common::send_msg_id {Common 17-157} {ERROR} \
+				"Error parsing command line options,\
+				please type 'validate_intf -help' for usage info."
+			}
+			return
+		}
+		# Remove option from args
+		set args [lreplace $args $idx_arg $idx_arg]
+		set args [lreplace $args $idx_opt $idx_opt]
+	}
+
+	# Selected hierarchy cells
+	set hier_sel [list]
+	# Matching hierarchy cells
+	set hier_cell_filter "TYPE == hier && CONFIG.ACTIVE_SYNTH_BD == \"\""
+	foreach arg $args {
+		lappend hier_sel [get_bd_cells -filter $hier_cell_filter $arg]
+	}
+	# All hierarchy cells
+	if {![llength $args]} {
+		foreach hier [get_hier_list /] {
+			lappend hier_sel [get_bd_cells $hier]
+		}
+	}
+
+	set result [dict create]
+	foreach intf_net [get_bd_intf_nets -hierarchical -of_objects $hier_sel] {
+		set intf_pins [get_intf_pins_for_intf_net $intf_net]
+		set intf_pin0 [lindex $intf_pins 0]
+		set intf_pin1 [lindex $intf_pins 1]
+		# Filter interface type
+		set vlnv [get_property VLNV $intf_pin0]
+		set intf_type [lindex [split $vlnv ":"] 2]
+		set config_if0 [list_property $intf_pin0 CONFIG.*]
+		if {[llength $filter_type] && $intf_type != $filter_type} {
+			set config_if0 ""
+		}
+		foreach cfg $config_if0 {
+			set prop0 [get_property $cfg $intf_pin0]
+			if {![llength $prop0]} {
+				set prop0 "NONE"
+			}
+			set prop1 [get_property $cfg $intf_pin1]
+			if {![llength $prop1]} {
+				set prop1 "NONE"
+			}
+			if {$prop0 != $prop1} {
+				dict set result "Mismatch for parameter $cfg\
+				between interfaces pins $intf_pin0 <-> $intf_pin1. Values\
+				$prop0 <-> $prop1" ""
+			}
+		}
+	}
+	# More than one net can have the same source/sink interface pins.
+	# The dictionary removes duplicates.
+	foreach item [dict keys $result] {
+		::common::send_msg_id {VBS 07-011} {WARNING} $item
+	}
+	if {![llength $result]} {
+		::common::send_msg_id {BD 5-148} {INFO} \
+		"No interface property mismatches found"
+	}
+}
+
 proc ::vbs::bd_util::show_procs {} {
 	puts "
 Available procedures in namespace ::vbs::bd_util:
@@ -1694,6 +1856,7 @@ Available procedures in namespace ::vbs::bd_util:
 	print_hier      : Print Block Design hierarchy cells to PDF/SVG
 	export_ip       : Export IP TCL properties
 	source_filelist : Source TCL files of filelist
-	add_filelist    : Add files of filelist to project"
+	add_filelist    : Add files of filelist to project
+	validate_intf   : Validate interface properties"
 }
 ::vbs::bd_util::show_procs
