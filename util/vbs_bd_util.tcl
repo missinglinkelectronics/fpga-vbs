@@ -1178,7 +1178,7 @@ Usage:
 
 proc ::vbs::bd_util::print_hier {args} {
 	if {[lsearch $args "help"] >= 0 || [lsearch $args "-help"] >= 0} {
-		return [private_bd_util::print_hier_usage]
+		return [print_hier_usage]
 	}
 	if {[catch {current_bd_design}]} {
 		return
@@ -1407,12 +1407,31 @@ proc ::vbs::bd_util::export_ip {args} {
 
 	set inst_name [get_property NAME $ip]
 	set outfile [file join "${dir}" "${inst_name}.tcl"]
-	set fd [open $outfile w]
-
-	if {[info exists private_bd_util::file_header]} {
-		puts $fd [private_bd_util::_format_hdr {#} \
-			$private_bd_util::file_header]
+	if {[catch {open $outfile w} fd]} {
+		puts stderr "Could not open file $outfile for writing"
+		return 1
 	}
+
+	# Write file header
+	variable header_file
+	if {[info exists header_file]} {
+		if {[catch {open $header_file r} fp_header]} {
+			catch {
+				::common::send_msg_id {VBS 07-009} {ERROR} \
+				"Could not open file <$hdr_file>."
+			}
+			return 1
+		}
+		if {[info exists fd]} {
+			while {[gets $fp_header line] >= 0} {
+				puts $fd $line
+			}
+			puts $fd ""
+		}
+		close $fp_header
+	}
+
+	# Write file body
 	puts $fd "################################################################################"
 	puts $fd "##"
 	puts $fd "##  Summary: TCL script to generate ${ip_name} v${version} IP Core"
@@ -1496,7 +1515,7 @@ proc ::vbs::bd_util::source_filelist {args} {
 			catch {
 				::common::send_msg_id {Common 17-157} {ERROR} \
 				"Error parsing command line options,\
-				please type 'export_ip -help' for usage info."
+				please type 'source_filelist -help' for usage info."
 			}
 			return
 		}
@@ -1527,7 +1546,7 @@ proc ::vbs::bd_util::source_filelist {args} {
 			catch {
 				::common::send_msg_id {Common 17-157} {ERROR} \
 				"Error parsing command line options,\
-				please type 'export_ip -help' for usage info."
+				please type 'source_filelist -help' for usage info."
 			}
 			return
 		}
@@ -1595,7 +1614,7 @@ Name               Description
 proc ::vbs::bd_util::add_filelist {args} {
 	if {[lsearch $args "help"] >= 0 || [lsearch $args "-help"] >= 0 ||
 	    [llength $args] == 0} {
-		return [source_filelist_usage]
+		return [add_filelist_usage]
 	}
 
 	# Parse arguments
@@ -1608,7 +1627,7 @@ proc ::vbs::bd_util::add_filelist {args} {
 			catch {
 				::common::send_msg_id {Common 17-157} {ERROR} \
 				"Error parsing command line options,\
-				please type 'export_ip -help' for usage info."
+				please type 'add_filelist -help' for usage info."
 			}
 			return
 		}
@@ -1626,7 +1645,7 @@ proc ::vbs::bd_util::add_filelist {args} {
 		catch {
 			::common::send_msg_id {Common 17-163} {ERROR} \
 			"Missing value for option 'dir',\
-			please type 'source_filelist -help' for usage info."
+			please type 'add_filelist -help' for usage info."
 		}
 		return
 	}
@@ -1639,7 +1658,7 @@ proc ::vbs::bd_util::add_filelist {args} {
 			catch {
 				::common::send_msg_id {Common 17-157} {ERROR} \
 				"Error parsing command line options,\
-				please type 'export_ip -help' for usage info."
+				please type 'add_filelist -help' for usage info."
 			}
 			return
 		}
@@ -1658,7 +1677,7 @@ proc ::vbs::bd_util::add_filelist {args} {
 		catch {
 			::common::send_msg_id {Common 17-163} {ERROR} \
 			"Missing value for option 'file',\
-			please type 'source_filelist -help' for usage info."
+			please type 'add_filelist -help' for usage info."
 		}
 		return
 	}
