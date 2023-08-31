@@ -29,6 +29,9 @@
 namespace eval vbs {
 	namespace eval bd_util {
 		variable header_file
+		variable filelist_src
+		variable filelist_tcl
+		variable filelist_dict
 
 		namespace export set_header_file
 		namespace export get_hier_list
@@ -39,8 +42,11 @@ namespace eval vbs {
 		namespace export add_filelist
 		namespace export check_hier
 		namespace export validate_intf
+		namespace export write_filelist
 	}
 }
+
+package require fileutil
 
 # Return dictionary with all object properties
 proc ::vbs::bd_util::get_property_dict {obj} {
@@ -654,11 +660,18 @@ proc ::vbs::bd_util::export_single_hier {dir hier gen_wrapper dict_exclude \
 
 
 	# Set files
-	if {$hier == "/" && $dict_only == 0} {
-		write_csv [file join $dir "$base_name.csv"]
-	}
+	variable filelist_src
+	variable filelist_tcl
+	variable filelist_dict
+	set csv_file [file join $dir "$base_name.csv"]
 	set tcl_file [file join $dir "$base_name.tcl"]
 	set dict_file [file join $dir "$base_name.dict"]
+
+	# Write address assignments CSV file
+	if {$hier == "/" && $dict_only == 0} {
+		write_csv $csv_file
+		lappend filelist_src $csv_file
+	}
 
 	# Open files
 	if {$dict_only == 0} {
@@ -666,12 +679,14 @@ proc ::vbs::bd_util::export_single_hier {dir hier gen_wrapper dict_exclude \
 			puts stderr "Could not open file $tcl_file for writing"
 			return 1
 		}
+		lappend filelist_tcl $tcl_file
 	}
 	if {$dict_exclude && $bd_only == 0} {
 		if {[catch {open $dict_file w} fp_dict]} {
 			puts stderr "Could not open file $dict_file for writing"
 			return 1
 		}
+		lappend filelist_dict $dict_file
 	}
 
 	# Write file header
@@ -1866,6 +1881,155 @@ proc ::vbs::bd_util::validate_intf {args} {
 	}
 }
 
+proc ::vbs::bd_util::write_filelist_usage {} {
+	puts "write_filelist
+
+Description:
+Write filelist for previously generated files
+
+Syntax:
+write_filelist -dir <arg> -name <arg> \[-help\]\n
+
+Usage:
+  Name               Description
+  ------------------------------
+  -dir <arg>         Directory
+  -name <arg>        Basename
+  \[-help\]            Print usage\n"
+	return
+}
+
+# Write filelist with file paths relative to the generated filelist
+proc ::vbs::bd_util::write_filelist {args} {
+	if {[lsearch $args "help"] >= 0 || [lsearch $args "-help"] >= 0 ||
+	    [llength $args] == 0} {
+		return [write_filelist_usage]
+	}
+
+	# Parse arguments
+	set dir [pwd]
+	set idx_opt [lsearch $args "-dir"]
+	if {$idx_opt >= 0} {
+		set idx_dir [expr $idx_opt + 1]
+		set dir [lindex $args $idx_dir]
+		if {![llength $dir]} {
+			catch {
+				::common::send_msg_id {Common 17-157} {ERROR} \
+				"Error parsing command line options,\
+				please type 'write_filelist -help' for usage info."
+			}
+			return
+		}
+		if {![file isdirectory $dir]} {
+			catch {
+				::common::send_msg_id {Common 17-37} {ERROR} \
+				"Directory does not exist '[file normalize $dir]'"
+			}
+			return
+		}
+		# Remove option from args
+		set args [lreplace $args $idx_dir $idx_dir]
+		set args [lreplace $args $idx_opt $idx_opt]
+	} else {
+		catch {
+			::common::send_msg_id {Common 17-163} {ERROR} \
+			"Missing value for option 'dir',\
+			please type 'write_filelist -help' for usage info."
+		}
+		return
+	}
+	set dir [file normalize $dir]
+
+	set idx_opt [lsearch $args "-name"]
+	if {$idx_opt >= 0} {
+		set idx_arg [expr $idx_opt + 1]
+		set name [lindex $args $idx_arg]
+		if {![llength $name]} {
+			catch {
+				::common::send_msg_id {Common 17-157} {ERROR} \
+				"Error parsing command line options,\
+				please type 'write_filelist -help' for usage info."
+			}
+			return
+		}
+		# Remove option from args
+		set args [lreplace $args $idx_arg $idx_arg]
+		set args [lreplace $args $idx_opt $idx_opt]
+	} else {
+		catch {
+			::common::send_msg_id {Common 17-163} {ERROR} \
+			"Missing value for option 'name',\
+			please type 'write_filelist -help' for usage info."
+		}
+		return
+	}
+
+	variable filelist_dict
+	variable filelist_tcl
+	if {[expr {[info exists filelist_dict] && [llength $filelist_dict]}] || \
+	    [expr {[info exists filelist_tcl] && [llength $filelist_tcl]}]} {
+		# Open target filelist
+		set file_tcl [file join $dir "tcl_$name.f"]
+		if {[catch {open $file_tcl w} fp_tcl]} {
+			puts stderr "Could not open file $file_tcl for writing"
+			return 1
+		}
+	}
+	# Write relative filepaths
+	if {[info exists filelist_dict] && [llength $filelist_dict]} {
+		foreach item $filelist_dict {
+			set fdir [file dirname $item]
+			set fname [file tail $item]
+			puts $fp_tcl [file join [::fileutil::relative $dir $fdir] $fname]
+		}
+	}
+	if {[info exists filelist_tcl] && [llength $filelist_tcl]} {
+		foreach item $filelist_tcl {
+			set fdir [file dirname $item]
+			set fname [file tail $item]
+			puts $fp_tcl [file join [::fileutil::relative $dir $fdir] $fname]
+		}
+	}
+
+	variable filelist_src
+	if {[info exists filelist_src] && [llength $filelist_src]} {
+		# Open target filelist
+		set file_src [file join $dir "src_$name.f"]
+		if {[catch {open $file_src w} fp_src]} {
+			puts stderr "Could not open file $file_src for writing"
+			return 1
+		}
+		# Write relative filepaths
+		foreach item $filelist_src {
+			set fdir [file dirname $item]
+			set fname [file tail $item]
+			puts $fp_src [file join [::fileutil::relative $dir $fdir] $fname]
+		}
+	}
+
+	if {![info exists fp_tcl] && ! [info exists fp_src]} {
+		::common::send_msg_id {BD 5-148} {INFO} "Nothing to be done.\
+			No filelist written."
+	}
+
+	# Reset filelist variables
+	set filelist_dict [list]
+	set filelist_tcl [list]
+	set filelist_src [list]
+
+	# Cleanup
+	if {[info exists fp_tcl]} {
+		::common::send_msg_id {BD 5-148} {INFO} "Tcl file written\
+			<$file_tcl>."
+		close $fp_tcl
+	}
+	if {[info exists fp_src]} {
+		::common::send_msg_id {BD 5-148} {INFO} "Tcl file written\
+			<$file_src>."
+		close $fp_src
+	}
+}
+
 proc ::vbs::bd_util::show_procs {} {
 	puts "
 Available procedures in namespace ::vbs::bd_util:
@@ -1876,6 +2040,7 @@ Available procedures in namespace ::vbs::bd_util:
 	export_ip       : Export IP TCL properties
 	source_filelist : Source TCL files of filelist
 	add_filelist    : Add files of filelist to project
-	validate_intf   : Validate interface properties"
+	validate_intf   : Validate interface properties
+	write_filelist  : Write filelist for previously generated files"
 }
 ::vbs::bd_util::show_procs
