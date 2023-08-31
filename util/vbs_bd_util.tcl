@@ -1437,12 +1437,10 @@ proc ::vbs::bd_util::export_ip {args} {
 			}
 			return 1
 		}
-		if {[info exists fd]} {
-			while {[gets $fp_header line] >= 0} {
-				puts $fd $line
-			}
-			puts $fd ""
+		while {[gets $fp_header line] >= 0} {
+			puts $fd $line
 		}
+		puts $fd ""
 		close $fp_header
 	}
 
