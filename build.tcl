@@ -810,7 +810,12 @@ if {$start_step == $build_steps(prj)} {
     }
     set_property steps.synth_design.tcl.pre $syn_pre $run_synth
     set_property steps.synth_design.tcl.post $syn_post $run_synth
-    set_property steps.write_bitstream.tcl.pre $bit_pre $run_impl
+    # Bitstream is a Device Image for Versal devices
+    if {[llength [list_property $run_impl STEPS.WRITE_DEVICE_IMAGE.TCL.PRE]]} {
+        set_property steps.write_device_image.tcl.pre $bit_pre $run_impl
+    } else {
+        set_property steps.write_bitstream.tcl.pre $bit_pre $run_impl
+    }
 
     ############################################################################
 
