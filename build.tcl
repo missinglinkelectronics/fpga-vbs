@@ -794,7 +794,12 @@ if {$start_step == $build_steps(prj)} {
                 if {[info exists fileset_utils]} {
                     add_files -fileset $fileset_utils -norecurse $hook_dest
                 }
-                set_property steps.write_bitstream.tcl.post $hook_dest $run_impl
+                # Bitstream is a Device Image for Versal devices
+                if {[llength [list_property $run_impl STEPS.WRITE_DEVICE_IMAGE.TCL.PRE]]} {
+                    set_property steps.write_device_image.tcl.post $hook_dest $run_impl
+                } else {
+                    set_property steps.write_bitstream.tcl.post $hook_dest $run_impl
+                }
             }
         }
     }
@@ -1204,21 +1209,27 @@ if {$start_step <= $build_steps(impl) && \
 
 if {$start_step <= $build_steps(bit) && \
     $end_step   >= $build_steps(bit)} {
-    puts "Generating Bitstream ..."
-    reset_run   -from_step write_bitstream $run_impl
+    # Bitstream is a Device Image for Versal devices
+    if {[llength [list_property $run_impl STEPS.WRITE_DEVICE_IMAGE.TCL.PRE]]} {
+        set step "write_device_image"
+    } else {
+        set step "write_bitstream"
+    }
+    puts "Generating Bitstream/Device Image ..."
+    reset_run   -from_step $step $run_impl
     exec_usr_hooks "sys_bit_pre" $bvars_dict
     exec_usr_hooks "bld_bit_pre" $bvars_dict
-    launch_runs -to_step   write_bitstream $run_impl -jobs 4
+    launch_runs -to_step   $step $run_impl -jobs 4
     wait_on_run $run_impl
     if {[get_property PROGRESS $run_impl] != "100%"} {
-        puts "ERROR: Generating Bitstream failed"
+        puts "ERROR: Generating Bitstream/Device Image failed"
         exit 2
     }
     exec_usr_hooks "sys_bit_post" $bvars_dict
     exec_usr_hooks "bld_bit_post" $bvars_dict
-    puts "INFO: Generating Bitstream done"
+    puts "INFO: Generating Bitstream/Device Image done"
 } else {
-    puts "INFO: Skipping Bitstream Generation step"
+    puts "INFO: Skipping Bitstream/Device Image Generation step"
 }
 
 ################################################################################

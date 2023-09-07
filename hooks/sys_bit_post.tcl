@@ -53,10 +53,16 @@ set result_base  [dict get $bvars "RBASE"]
 
 ################################################################################
 
-# .bit file
-puts "Copying generated .bit file to build directory with name ${result_base}.bit"
-set bit_gen_path "[file normalize "${run_impl_dir}/${tl_name}.bit"]"
-set bit_path     "[file normalize "${project_dir}/${result_base}.bit"]"
+# Copy Bitstream/Device Image
+set run_impl [get_runs "impl*"]
+if {[llength [list_property $run_impl STEPS.WRITE_DEVICE_IMAGE.TCL.PRE]]} {
+    set bin "pdi"
+} else {
+    set bin "bit"
+}
+puts "Copying generated .${bin} file to build directory with name ${result_base}.${bin}"
+set bit_gen_path "[file normalize "${run_impl_dir}/${tl_name}.${bin}"]"
+set bit_path     "[file normalize "${project_dir}/${result_base}.${bin}"]"
 file copy -force -- $bit_gen_path $bit_path
 
 # .sysdef file
