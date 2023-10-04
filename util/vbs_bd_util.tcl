@@ -456,7 +456,6 @@ proc ::vbs::bd_util::generate_check_proc {hier_dict fp} {
 	puts $fp "\t\treturn 0"
 	puts $fp "\t\}"
 	puts $fp "\tvariable cfg_dict"
-	puts $fp "\tset ver $vivado_version"
 	puts $fp "\tset ips \[list \\"
 	foreach ip $ips {
 		puts $fp "\t\t$ip \\"
@@ -478,7 +477,7 @@ proc ::vbs::bd_util::generate_check_proc {hier_dict fp} {
 	}
 	puts $fp "\t\]"
 	puts $fp "\treturn \[::vbs::bd_util::check_hier\
-		\$ver \$ips \$refs \$depends \$keys \$cfg_dict\]"
+		\$ips \$refs \$depends \$keys \$cfg_dict\]"
 	puts $fp "\}"
 }
 
@@ -954,19 +953,6 @@ proc ::vbs::bd_util::export_hier {args} {
 	}
 }
 
-# Checks Vivado Version
-proc ::vbs::bd_util::check_viv_ver {viv_ver_req} {
-	set viv_ver_cur [version -short]
-	if {$viv_ver_req != $viv_ver_cur} {
-		::common::send_msg_id {VBS 07-000} {CRITICAL WARNING} \
-			"[lindex [info level -2] 0]:\
-			Required Vivado version <$viv_ver_req>.\
-			Current Vivado version <viv_ver_cur>"
-		return 1
-	}
-	return 0
-}
-
 # Checks whether IPs are in the catalogue
 proc ::vbs::bd_util::check_ips {ips} {
 	set ips_missing [list]
@@ -1019,13 +1005,12 @@ proc ::vbs::bd_util::check_dict {cfg_keys cfg_dict} {
 }
 
 # Checks whether all prerequisites are fulfilled to create the hierarchy cell
-proc ::vbs::bd_util::check_hier {ver ips refs depends cfg_keys cfg_dict} {
+proc ::vbs::bd_util::check_hier {ips refs depends cfg_keys cfg_dict} {
 	set ret 0
 	foreach func $depends {
 		set ret [expr $ret || [$func]]
 	}
 	set ret [expr $ret || \
-		[check_viv_ver $ver] || \
 		[check_ips $ips] || \
 		[check_refs $refs] || \
 		[check_dict $cfg_keys $cfg_dict] \
