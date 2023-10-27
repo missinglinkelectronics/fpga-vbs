@@ -94,6 +94,12 @@ proc ::vbs::bd_util::get_hier_dict {hier} {
 	set ip_cells [get_bd_cells -quiet -filter {TYPE == ip} $hier/*]
 	foreach ip_cell $ip_cells {
 		dict set hier_dict IP_CELLS $ip_cell [get_property_dict $ip_cell]
+		# The AXI-NOC requires storage of interface pin properties
+		set cell_intf_pins [get_bd_intf_pins -quiet -of_objects $ip_cell]
+		foreach cell_intf_pin $cell_intf_pins {
+			dict set hier_dict IP_CELLS $ip_cell INTF_PINS $cell_intf_pin \
+				[get_property_dict $cell_intf_pin]
+		}
 	}
 
 	# Sub-hierarchies and BD Container
@@ -271,6 +277,16 @@ proc ::vbs::bd_util::generate_ip_cells_str_list {hier_dict} {
 				lappend str_list "set_property -dict \\"
 				lappend str_list "\t\[dict get \$cfg_dict $NAME CONFIG\] \\"
 				lappend str_list "\t\$$NAME"
+			}
+			if {[dict exists $properties INTF_PINS]} {
+				dict for {intf_pin props} $INTF_PINS {
+					# Set AXI-NOX interface pin properties
+					if {[dict exists $props CONFIG CONFIG.NOC_PARAMS]} {
+						lappend str_list "set_property -dict \\"
+						lappend str_list "\t\[dict get \$cfg_dict $NAME INTF_PINS [dict get $props NAME] CONFIG\] \\"
+						lappend str_list "\t\[get_bd_intf_pins -of_objects \$axi_noc -filter \{NAME =~ [dict get $props NAME]\}\]"
+					}
+				}
 			}
 		}
 	}
@@ -611,6 +627,19 @@ proc ::vbs::bd_util::write_dict {fname hier_dict} {
 					puts $fp "\t$key \{$value\} \\"
 				}
 				puts $fp "\]"
+			}
+			if {[dict exists $properties INTF_PINS]} {
+				dict for {intf_pin props} $INTF_PINS {
+					# Write AXI-NOX interface pin properties
+					if {[dict exists $props CONFIG CONFIG.NOC_PARAMS]} {
+						puts $fp "dict set ::vbs::${name}::cfg_dict $NAME INTF_PINS [dict get $props NAME] CONFIG\
+							\[list \\"
+						dict for {key value} [dict get $props CONFIG] {
+							puts $fp "\t$key \{$value\} \\"
+						}
+						puts $fp "\]"
+					}
+				}
 			}
 		}
 	}
