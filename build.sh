@@ -3,7 +3,7 @@
 #
 ################################################################################
 ##
-## Copyright 2017-2019 Missing Link Electronics, Inc.
+## Copyright 2017-2023 Missing Link Electronics, Inc.
 ##
 ## Licensed under the Apache License, Version 2.0 (the "License");
 ## you may not use this file except in compliance with the License.
@@ -54,7 +54,7 @@
 
 ################################################################################
 # Configuration Dictionary File Version
-CDF_VER="1.4.0"
+CDF_VER="1.4.1"
 
 # Paths relative to build.sh
 SCRIPT_DIR="$(dirname "$(readlink -e "$0")")"

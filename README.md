@@ -3,7 +3,7 @@
 #
 ################################################################################
 ##
-## Copyright 2017-2019 Missing Link Electronics, Inc.
+## Copyright 2017-2023 Missing Link Electronics, Inc.
 ##
 ## Licensed under the Apache License, Version 2.0 (the "License");
 ## you may not use this file except in compliance with the License.
@@ -199,6 +199,14 @@ Configure IPXACT IP core generation using the PACKAGE_IP key.
 * ident: Mandatory IP core identification section. See package IP GUI in Vivado
     * bd_name: Package block design - leave empty for non-BD based projects
     * package_xci: Boolean - Save Nested IPs as source code or as xci-files
+    * supported_device_families: leave empty to add all device families, allowed values are
+        * aartix7, akintex7, artix7, artix7l, artixuplus, qartix7
+        * aspartan7, spartan7
+        * qkintex7, qkintex7l, kintexu, kintexuplus, kintex7, kintex7l
+        * qvirtex7, virtexuplus, virtexu, virtex7, virtexuplusHBM, virtexuplus58g
+        * qzynq, azynq, zynq, zynquplus
+        * versal
+
 * container_dir: Output folder container relative to flavor
 * zip_name: Output ZIP file in build folder
 * component: IP package commands in braces
@@ -221,6 +229,7 @@ Example:
             vendor "yaipcompany.com"
             ven_disp_name "yaipcompany"
             company_url "https://www.yaipcompany.com"
+            supported_device_families ""
         }
         container_dir "../ipxact"
         zip_name "yaip-packaged.zip"

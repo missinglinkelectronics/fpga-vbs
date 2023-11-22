@@ -2,7 +2,7 @@
 #
 ################################################################################
 ##
-## Copyright 2017-2019 Missing Link Electronics, Inc.
+## Copyright 2017-2023 Missing Link Electronics, Inc.
 ##
 ## Licensed under the Apache License, Version 2.0 (the "License");
 ## you may not use this file except in compliance with the License.
@@ -962,6 +962,21 @@ if {$start_step == $build_steps(package) || \
             set container_dir "${project_dir}"
         }
 
+        # Set supported_device_families values
+        if {![llength $supported_device_families]} {
+            # Enable all
+            set supported_device_families [list \
+                zynquplus artix7 artix7l artixuplus qartix7 qkintex7 qkintex7l kintexu \
+                kintexuplus versal qvirtex7 virtexuplus virtexuplusHBM qzynq kintex7 \
+                kintex7l spartan7 virtex7 virtexu virtexuplus58g aartix7 akintex7 \
+                aspartan7 azynq zynq \
+            ]
+        }
+        set supp_families ""
+        foreach supp_device $supported_device_families {
+            append supp_families "${supp_device} production "
+        }
+
         # Set default values
         if {[string equal $ipname ""]} {
             set ipname "custom-ip"
@@ -1055,6 +1070,7 @@ if {$start_step == $build_steps(package) || \
         set_property name                "${ipname}"        [ipx::current_core]
         set_property version             "${version}"       [ipx::current_core]
         set_property core_revision       "${core_revision}" [ipx::current_core]
+        set_property supported_families  "${supp_families}" [ipx::current_core]
         # Parse IP specific properties
         if {[dict exists $package_ip_dict "component"]} {
             set component [dict get $package_ip_dict "component"]

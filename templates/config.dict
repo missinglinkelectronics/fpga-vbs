@@ -3,7 +3,7 @@
 ################################################################################
 
 # Configuration Dictionary File Version
-CDF_VER "1.4.0"
+CDF_VER "1.4.1"
 
 ## Project parameters
 # Override project.cfg project name
@@ -142,6 +142,7 @@ TCL_SET {
 #        vendor ""
 #        ven_disp_name ""
 #        company_url ""
+#        supported_device_families ""
 #    }
 #    ## Optional
 #    # Output folder container relative to flavor
