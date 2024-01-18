@@ -1900,13 +1900,14 @@ Description:
 Write filelist for previously generated files
 
 Syntax:
-write_filelist -dir <arg> -name <arg> \[-help\]\n
+write_filelist -dir <arg> -name <arg> -reset \[-help\]\n
 
 Usage:
   Name               Description
   ------------------------------
   -dir <arg>         Directory
   -name <arg>        Basename
+  -reset             Reset logged files
   \[-help\]            Print usage\n"
 	return
 }
@@ -1916,6 +1917,19 @@ proc ::vbs::bd_util::write_filelist {args} {
 	if {[lsearch $args "help"] >= 0 || [lsearch $args "-help"] >= 0 ||
 	    [llength $args] == 0} {
 		return [write_filelist_usage]
+	}
+
+	variable filelist_dict
+	variable filelist_tcl
+	variable filelist_src
+
+	if {[lsearch $args "-reset"] >= 0} {
+		# Reset filelist variables
+		set filelist_dict [list]
+		set filelist_tcl [list]
+		set filelist_src [list]
+		::common::send_msg_id {VBS 07-007} {INFO} "Filelist log reset."
+		return
 	}
 
 	# Parse arguments
@@ -1976,8 +1990,6 @@ proc ::vbs::bd_util::write_filelist {args} {
 		return
 	}
 
-	variable filelist_dict
-	variable filelist_tcl
 	if {[expr {[info exists filelist_dict] && [llength $filelist_dict]}] || \
 	    [expr {[info exists filelist_tcl] && [llength $filelist_tcl]}]} {
 		# Open target filelist
@@ -2003,7 +2015,6 @@ proc ::vbs::bd_util::write_filelist {args} {
 		}
 	}
 
-	variable filelist_src
 	if {[info exists filelist_src] && [llength $filelist_src]} {
 		# Open target filelist
 		set file_src [file join $dir "src_$name.f"]
