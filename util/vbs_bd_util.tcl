@@ -1739,6 +1739,15 @@ proc ::vbs::bd_util::get_intf_partner_pin {intf_pin_start intf_net_start} {
 		-of_objects [get_bd_intf_nets $intf_net_start] \
 		-filter "PATH != $intf_pin_start" \
 	]
+	# Exclude Monitor-mode interface pins
+	foreach item $intf_pin {
+		if {[get_property MODE $item] == "Monitor"} {
+			::common::send_msg_id {VBS 07-011} {WARNING} \
+			"Excluding interface pin '$item' from validation. Monitor-mode\
+			interface pins are not supported."
+			set intf_pin [lsearch -inline -all -not -exact $intf_pin $item]
+		}
+	}
 	# Source/sink interface pins have CONFIG.* parameters
 	if {[llength $intf_pin] && [llength [list_property $intf_pin CONFIG.*]]} {
 		return $intf_pin
