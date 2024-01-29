@@ -135,8 +135,10 @@ proc ::vbs::bd_util::get_root_dict {hier_dict} {
 	set nets_dict [dict get $hier_dict NETS]
 	dict for {net pins} $nets_dict {
 		set ports [get_bd_ports -quiet -of_objects $net]
-		lappend bd_ports $ports
-		dict set hier_dict NETS $net PORTS $ports
+		if {[llength $ports]} {
+			lappend bd_ports $ports
+			dict set hier_dict NETS $net PORTS $ports
+		}
 	}
 
 	# Insert interface port nets
