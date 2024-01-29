@@ -102,7 +102,7 @@ proc ::vbs::bd_util::get_hier_dict {hier} {
 		}
 	}
 
-	# Sub-hierarchies and BD Container
+	# Sub-hierarchies, BD Container and Subsystem IP
 	set hier_cells [get_bd_cells -quiet -filter {TYPE == hier} $hier/*]
 	foreach hier_cell $hier_cells {
 		dict set hier_dict HIER_CELLS $hier_cell [get_property_dict $hier_cell]
@@ -256,10 +256,11 @@ proc ::vbs::bd_util::generate_pins_str_list {hier_dict} {
 # Generate list of strings to create ip cells
 proc ::vbs::bd_util::generate_ip_cells_str_list {hier_dict} {
 	set str_list [list]
-	if {![dict exists $hier_dict IP_CELLS]} {
-		return $str_list
+	set ip_cells ""
+	if {[dict exists $hier_dict IP_CELLS]} {
+		set ip_cells [dict get $hier_dict IP_CELLS]
 	}
-	dict for {ip_cell properties} [dict get $hier_dict IP_CELLS] {
+	dict for {ip_cell properties} $ip_cells {
 		dict with properties {
 			set vlnv_type [lindex [split $VLNV ":"] 1]
 			set vlnv_ip_ref [lindex [split $VLNV ":"] 2]
@@ -292,19 +293,25 @@ proc ::vbs::bd_util::generate_ip_cells_str_list {hier_dict} {
 			}
 		}
 	}
-	return $str_list
-}
-
-# Generate list of strings to create block design container cells
-proc ::vbs::bd_util::generate_bd_cells_str_list {hier_dict} {
-	set str_list [list]
-	if {![dict exists $hier_dict HIER_CELLS]} {
-		return $str_list
+	# BD Container and Subsystem IP
+	set hier_cells ""
+	if {[dict exists $hier_dict HIER_CELLS]} {
+		set hier_cells [dict get $hier_dict HIER_CELLS]
 	}
-	dict for {hier_cell properties} [dict get $hier_dict HIER_CELLS] {
+	dict for {hier_cell properties} $hier_cells {
 		dict with properties {
-			# BD container
-			if {[llength $CONFIG]} {
+			if {[llength $VLNV]} {
+				# Subsystem IP
+				lappend str_list "set $NAME \[create_bd_cell \\"
+				lappend str_list "\t-type ip \\"
+				lappend str_list "\t-vlnv $VLNV \\"
+				lappend str_list "\t$NAME \\"
+				lappend str_list "\]"
+				lappend str_list "set_property -dict \\"
+				lappend str_list "\t\[dict get \$cfg_dict $NAME CONFIG\] \\"
+				lappend str_list "\t\$$NAME"
+			} elseif {[llength $CONFIG]} {
+				# BD container
 				set bd_ref [file rootname \
 					[dict get $CONFIG CONFIG.ACTIVE_SYNTH_BD] \
 				]
@@ -330,7 +337,7 @@ proc ::vbs::bd_util::generate_hier_str_list {hier_dict} {
 	}
 	dict for {hier_cell properties} [dict get $hier_dict HIER_CELLS] {
 		dict with properties {
-			# Exclude BD container
+			# Exclude BD container and Subsystem IP
 			if {![llength $CONFIG]} {
 				lappend str_list \
 					"::vbs::${NAME}::create_hierarchy \$hier_cell $NAME"
@@ -433,8 +440,12 @@ proc ::vbs::bd_util::generate_check_proc {hier_dict fp} {
 	if {[dict exists $hier_dict HIER_CELLS]} {
 		dict for {hier_cell properties} [dict get $hier_dict HIER_CELLS] {
 			dict with properties {
+				# Subsystem IP
+				if {[llength $VLNV]} {
+					lappend ips $VLNV
+					lappend config $NAME
 				# BD container
-				if {[llength $CONFIG]} {
+				} elseif {[llength $CONFIG]} {
 					lappend refs $NAME
 					lappend config $NAME
 				} else {
@@ -546,9 +557,6 @@ proc ::vbs::bd_util::write_tcl {fname hier_dict} {
 	}
 	puts $fp "\n\t\# Create IP"
 	foreach str [generate_ip_cells_str_list $hier_dict] {
-		puts $fp "\t$str"
-	}
-	foreach str [generate_bd_cells_str_list $hier_dict] {
 		puts $fp "\t$str"
 	}
 	puts $fp "\n\t\# Create hierarchies"
@@ -969,7 +977,7 @@ proc ::vbs::bd_util::export_hier {args} {
 	# Selected hierarchy cells
 	set hier_sel [list]
 	# Matching hierarchy cells
-	set hier_cell_filter "TYPE == hier && CONFIG.ACTIVE_SYNTH_BD == \"\""
+	set hier_cell_filter "TYPE == hier && CONFIG.ACTIVE_SYNTH_BD == \"\" && VLNV == \"\""
 	foreach arg $args {
 		lappend hier_sel [get_bd_cells -filter $hier_cell_filter $arg]
 	}
@@ -1138,7 +1146,7 @@ proc ::vbs::bd_util::get_hier_list {args} {
 	}
 
 	# Select hierarchy cells which are no block design container
-	set hier_cell_filter "TYPE == hier && CONFIG.ACTIVE_SYNTH_BD == \"\""
+	set hier_cell_filter "TYPE == hier && CONFIG.ACTIVE_SYNTH_BD == \"\" && VLNV == \"\""
 	set root_cell [get_bd_cells -filter $hier_cell_filter $args]
 	if {![llength $root_cell]} {
 		return ""
@@ -1148,6 +1156,13 @@ proc ::vbs::bd_util::get_hier_list {args} {
 		set hier_cell_filter "$hier_cell_filter && PATH =~ $root_cell/*"
 	}
 	set hier_list [get_bd_cells -quiet -hier -filter $hier_cell_filter]
+
+	# Exclude hierarchy cells that are part of BD container or Subsystem IPs
+	set excl_filter "TYPE == hier && (CONFIG.ACTIVE_SYNTH_BD != \"\" || VLNV != \"\")"
+	set excl_hier [get_bd_cells -quiet -hier -filter $excl_filter]
+	foreach item $excl_hier {
+		set hier_list [lsearch -inline -all -not -glob $hier_list $item/*]
+	}
 
 	# Sort list from leaf to root hierarchy
 	set sort_list [list]
@@ -1290,7 +1305,7 @@ proc ::vbs::bd_util::print_hier {args} {
 	# Selected hierarchy cells
 	set hier_sel [list]
 	# Matching hierarchy cells
-	set hier_cell_filter "TYPE == hier && CONFIG.ACTIVE_SYNTH_BD == \"\""
+	set hier_cell_filter "TYPE == hier && CONFIG.ACTIVE_SYNTH_BD == \"\" && VLNV == \"\""
 	foreach arg $args {
 		lappend hier_sel [get_bd_cells -filter $hier_cell_filter $arg]
 	}
@@ -1854,7 +1869,7 @@ proc ::vbs::bd_util::validate_intf {args} {
 	# Selected hierarchy cells
 	set hier_sel [list]
 	# Matching hierarchy cells
-	set hier_cell_filter "TYPE == hier && CONFIG.ACTIVE_SYNTH_BD == \"\""
+	set hier_cell_filter "TYPE == hier && CONFIG.ACTIVE_SYNTH_BD == \"\" && VLNV == \"\""
 	foreach arg $args {
 		lappend hier_sel [get_bd_cells -filter $hier_cell_filter $arg]
 	}
