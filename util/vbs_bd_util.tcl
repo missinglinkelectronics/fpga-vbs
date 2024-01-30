@@ -645,7 +645,10 @@ proc ::vbs::bd_util::write_dict {fname hier_dict} {
 						puts $fp "dict set ::vbs::${name}::cfg_dict $NAME INTF_PINS [dict get $props NAME] CONFIG\
 							\[list \\"
 						dict for {key value} [dict get $props CONFIG] {
-							puts $fp "\t$key \{$value\} \\"
+							# Setting CONFIG.FREQ_HZ results in a critical warning
+							if {$key != "CONFIG.FREQ_HZ"} {
+								puts $fp "\t$key \{$value\} \\"
+							}
 						}
 						puts $fp "\]"
 					}
