@@ -453,25 +453,45 @@ proc ::vbs::bd_util::generate_intf_nets_str_list {hier_dict} {
 	}
 	set hier_path [dict get $hier_dict PATH]
 	dict for {intf_net intf_pins_ports} $intf_nets {
-		lappend str_list "connect_bd_intf_net -intf_net\
-			[dict get $hier_dict INTF_NETS $intf_net NAME] \\"
+		# Is is not permitted to connect more than two interface pins at once
+		set intf_dict [dict create]
 		if {[dict exists $intf_pins_ports INTF_PINS]} {
 			foreach intf_pin [dict get $intf_pins_ports INTF_PINS] {
 				# Strip off hierarchy path
 				set intf_pin_str [string map [list $hier_path/ ""] $intf_pin]
 				set intf_pin_str [string trim $intf_pin_str "/"]
-				lappend str_list "\t\[get_bd_intf_pins $intf_pin_str\] \\"
+				dict set intf_dict $intf_pin_str INTF_PIN
 			}
 		}
 		if {[dict exists $intf_pins_ports INTF_PORTS]} {
 			foreach intf_port [dict get $intf_pins_ports INTF_PORTS] {
-				set intf_port [string trim $intf_port "/"]
-				lappend str_list "\t\[get_bd_intf_ports $intf_port\] \\"
+				set intf_port_str [string trim $intf_port "/"]
+				dict set intf_dict $intf_port_str INTF_PORT
 			}
 		}
-		# Remove backslash at the end
-		set last_item [string map {" \\" ""} [lindex $str_list end]]
-		set str_list [lreplace $str_list end end $last_item]
+		if {[dict size $intf_dict] > 1} {
+			# Starting intf_pin/intf_port
+			set intf_p [lindex [dict keys $intf_dict] 0]
+			if {[dict get $intf_dict $intf_p] == "INTF_PIN"} {
+				set intf_p_str "\t\[get_bd_intf_pins $intf_p\] \\"
+			} else {
+				set intf_p_str "\t\[get_bd_intf_ports $intf_p\] \\"
+			}
+			set intf_dict [dict remove $intf_dict $intf_p]
+			dict for {p_name p_type} $intf_dict {
+				lappend str_list "connect_bd_intf_net -intf_net\
+					[dict get $hier_dict INTF_NETS $intf_net NAME] \\"
+				lappend str_list $intf_p_str
+				if {$p_type == "INTF_PIN"} {
+					lappend str_list "\t\[get_bd_intf_pins $p_name\] \\"
+				} else {
+					lappend str_list "\t\[get_bd_intf_ports $p_name\] \\"
+				}
+				# Remove backslash at the end
+				set last_item [string map {" \\" ""} [lindex $str_list end]]
+				set str_list [lreplace $str_list end end $last_item]
+			}
+		}
 	}
 	return $str_list
 }
