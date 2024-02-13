@@ -72,8 +72,9 @@ proc ::vbs::bd_util::get_property_dict {obj} {
 	return $property_dict
 }
 
-# Return dictionary with PINS, INTF_PINS, IP_CELLS, HIER_CELLS, BD_CELLS, NETS
-# and INTF_NETS for given hierarchy
+# Return dictionary with PINS, INTF_PINS, IP_CELLS, HIER_CELLS, BD_CELLS, NETS,
+# INTF_NETS and custom types (MODULE_REF, AXI_NOC, BD_CONTAINER, SUBSYSTEM_IP)
+# for a given hierarchy
 proc ::vbs::bd_util::get_hier_dict {hier} {
 	# Hierarchy properties
 	set hier_dict [get_property_dict [get_bd_cells -quiet $hier]]
@@ -90,22 +91,61 @@ proc ::vbs::bd_util::get_hier_dict {hier} {
 		dict set hier_dict INTF_PINS $intf_pin [get_property_dict $intf_pin]
 	}
 
-	# IP cells and modules
-	set ip_cells [get_bd_cells -quiet -filter {TYPE == ip} $hier/*]
-	foreach ip_cell $ip_cells {
-		dict set hier_dict IP_CELLS $ip_cell [get_property_dict $ip_cell]
-		# The AXI-NOC requires storage of interface pin properties
-		set cell_intf_pins [get_bd_intf_pins -quiet -of_objects $ip_cell]
-		foreach cell_intf_pin $cell_intf_pins {
-			dict set hier_dict IP_CELLS $ip_cell INTF_PINS $cell_intf_pin \
-				[get_property_dict $cell_intf_pin]
+	# IP cells - exclude AXI-NOC and Module reference
+	set filter "TYPE == ip && VLNV !~ xilinx.com:ip:axi_noc:* && VLNV !~ *:module_ref:*:*"
+	set ip_cells [get_bd_cells -quiet -filter $filter $hier/*]
+	foreach cell $ip_cells {
+		dict set hier_dict IP_CELLS $cell [get_property_dict $cell]
+	}
+
+	# Module reference
+	set filter "TYPE == ip && VLNV =~ *:module_ref:*:*"
+	set mod_ref_cells [get_bd_cells -quiet -filter $filter $hier/*]
+	foreach cell $mod_ref_cells {
+		dict set hier_dict MODULE_REF $cell [get_property_dict $cell]
+		# Add module reference property
+		set vlnv [dict get $hier_dict MODULE_REF $cell VLNV]
+		set vlnv_ip_ref [lindex [split $vlnv ":"] 2]
+		dict set hier_dict MODULE_REF $cell REF_NAME $vlnv_ip_ref
+	}
+
+	# AXI-NOC
+	set filter "TYPE == ip && VLNV =~ xilinx.com:ip:axi_noc:*"
+	set axi_noc_cells [get_bd_cells -quiet -filter $filter $hier/*]
+	foreach cell $axi_noc_cells {
+		dict set hier_dict AXI_NOC $cell [get_property_dict $cell]
+		# The AXI-NOC requires interface pin properties
+		set noc_intf_pins [get_bd_intf_pins -quiet -of_objects $cell]
+		foreach intf_pin $noc_intf_pins {
+			dict set hier_dict AXI_NOC $cell INTF_PINS $intf_pin \
+				[get_property_dict $intf_pin]
 		}
 	}
 
-	# Sub-hierarchies, BD Container and Subsystem IP
-	set hier_cells [get_bd_cells -quiet -filter {TYPE == hier} $hier/*]
-	foreach hier_cell $hier_cells {
-		dict set hier_dict HIER_CELLS $hier_cell [get_property_dict $hier_cell]
+	# Sub-hierarchies - exclude Subsystem IP and BD Container
+	set filter "TYPE == hier && VLNV == \"\" && CONFIG.ACTIVE_SYNTH_BD == \"\""
+	set hier_cells [get_bd_cells -quiet -filter $filter $hier/*]
+	foreach cell $hier_cells {
+		dict set hier_dict HIER_CELLS $cell [get_property_dict $cell]
+	}
+
+	# BD Container
+	set filter "TYPE == hier && CONFIG.ACTIVE_SYNTH_BD != \"\""
+	set bd_container_cells [get_bd_cells -quiet -filter $filter $hier/*]
+	foreach cell $bd_container_cells {
+		dict set hier_dict BD_CONTAINER $cell [get_property_dict $cell]
+		# Add block design reference property
+		set bd_ref [file rootname [dict get $hier_dict \
+			BD_CONTAINER $cell CONFIG CONFIG.ACTIVE_SYNTH_BD] \
+		]
+		dict set hier_dict BD_CONTAINER $cell REF_NAME $bd_ref
+	}
+
+	# Subsystem IP
+	set filter "TYPE == hier && VLNV != \"\""
+	set subsys_ip_cells [get_bd_cells -quiet -filter $filter $hier/*]
+	foreach cell $subsys_ip_cells {
+		dict set hier_dict SUBSYSTEM_IP $cell [get_property_dict $cell]
 	}
 
 	# Pins per net
@@ -266,18 +306,9 @@ proc ::vbs::bd_util::generate_ip_cells_str_list {hier_dict} {
 	}
 	dict for {cell properties} $cells {
 		dict with properties {
-			set vlnv_type [lindex [split $VLNV ":"] 1]
-			set vlnv_ip_ref [lindex [split $VLNV ":"] 2]
 			lappend str_list "set $NAME \[create_bd_cell \\"
-			# RTL module reference
-			if {$vlnv_type == "module_ref"} {
-				lappend str_list "\t-type module \\"
-				lappend str_list "\t-reference $vlnv_ip_ref \\"
-			# Other IP
-			} else {
-				lappend str_list "\t-type ip \\"
-				lappend str_list "\t-vlnv $VLNV \\"
-			}
+			lappend str_list "\t-type ip \\"
+			lappend str_list "\t-vlnv $VLNV \\"
 			lappend str_list "\t$NAME \\"
 			lappend str_list "\]"
 			if {[llength $CONFIG]} {
@@ -285,45 +316,111 @@ proc ::vbs::bd_util::generate_ip_cells_str_list {hier_dict} {
 				lappend str_list "\t\[dict get \$cfg_dict $NAME CONFIG\] \\"
 				lappend str_list "\t\$$NAME"
 			}
-			if {[dict exists $properties INTF_PINS]} {
-				dict for {intf_pin props} $INTF_PINS {
-					# Set AXI-NOX interface pin properties
-					if {[dict exists $props CONFIG CONFIG.NOC_PARAMS]} {
-						lappend str_list "set_property -dict \\"
-						lappend str_list "\t\[dict get \$cfg_dict $NAME INTF_PINS [dict get $props NAME] CONFIG\] \\"
-						lappend str_list "\t\[get_bd_intf_pins -of_objects \$axi_noc -filter \{NAME =~ [dict get $props NAME]\}\]"
-					}
+		}
+	}
+	return $str_list
+}
+
+# Generate list of strings to create module reference cells
+proc ::vbs::bd_util::generate_module_ref_str_list {hier_dict} {
+	set str_list [list]
+	set cells [list]
+	if {[dict exists $hier_dict MODULE_REF]} {
+		set cells [dict get $hier_dict MODULE_REF]
+	}
+	dict for {cell properties} $cells {
+		dict with properties {
+			lappend str_list "set $NAME \[create_bd_cell \\"
+			lappend str_list "\t-type module \\"
+			lappend str_list "\t-reference $REF_NAME \\"
+			lappend str_list "\t$NAME \\"
+			lappend str_list "\]"
+			if {[llength $CONFIG]} {
+				lappend str_list "set_property -dict \\"
+				lappend str_list "\t\[dict get \$cfg_dict $NAME CONFIG\] \\"
+				lappend str_list "\t\$$NAME"
+			}
+		}
+	}
+	return $str_list
+}
+
+# Generate list of strings to create AXI-NOC cells
+proc ::vbs::bd_util::generate_axi_noc_str_list {hier_dict} {
+	set str_list [list]
+	set cells [list]
+	if {[dict exists $hier_dict AXI_NOC]} {
+		set cells [dict get $hier_dict AXI_NOC]
+	}
+	dict for {cell properties} $cells {
+		dict with properties {
+			lappend str_list "set $NAME \[create_bd_cell \\"
+			lappend str_list "\t-type ip \\"
+			lappend str_list "\t-vlnv $VLNV \\"
+			lappend str_list "\t$NAME \\"
+			lappend str_list "\]"
+			if {[llength $CONFIG]} {
+				lappend str_list "set_property -dict \\"
+				lappend str_list "\t\[dict get \$cfg_dict $NAME CONFIG\] \\"
+				lappend str_list "\t\$$NAME"
+			}
+		}
+		# Apply AXI-NOC interface properties
+		if {[dict exists $properties INTF_PINS]} {
+			dict for {intf_pin props} $INTF_PINS {
+				set cfg_dict [dict get $props CONFIG]
+				# Setting CONFIG.FREQ_HZ is prohibited, remove it
+				set cfg_dict [dict remove $cfg_dict CONFIG.FREQ_HZ]
+				if {[llength $cfg_dict]} {
+					lappend str_list "set_property -dict \\"
+					lappend str_list "\t\[dict get \$cfg_dict $NAME INTF_PINS [dict get $props NAME] CONFIG\] \\"
+					lappend str_list "\t\[get_bd_intf_pins -of_objects \$$NAME -filter \{NAME =~ [dict get $props NAME]\}\]"
 				}
 			}
 		}
 	}
-	# BD Container and Subsystem IP
-	set hier_cells ""
-	if {[dict exists $hier_dict HIER_CELLS]} {
-		set hier_cells [dict get $hier_dict HIER_CELLS]
+	return $str_list
+}
+
+# Generate list of strings to create BD container cells
+proc ::vbs::bd_util::generate_bd_container_str_list {hier_dict} {
+	set str_list [list]
+	set cells [list]
+	if {[dict exists $hier_dict BD_CONTAINER]} {
+		set cells [dict get $hier_dict BD_CONTAINER]
 	}
-	dict for {hier_cell properties} $hier_cells {
+	dict for {cell properties} $cells {
 		dict with properties {
-			if {[llength $VLNV]} {
-				# Subsystem IP
-				lappend str_list "set $NAME \[create_bd_cell \\"
-				lappend str_list "\t-type ip \\"
-				lappend str_list "\t-vlnv $VLNV \\"
-				lappend str_list "\t$NAME \\"
-				lappend str_list "\]"
+			lappend str_list "set $NAME \[create_bd_cell \\"
+			lappend str_list "\t-type container \\"
+			lappend str_list "\t-reference $REF_NAME \\"
+			lappend str_list "\t$NAME \\"
+			lappend str_list "\]"
+			if {[llength $CONFIG]} {
 				lappend str_list "set_property -dict \\"
 				lappend str_list "\t\[dict get \$cfg_dict $NAME CONFIG\] \\"
 				lappend str_list "\t\$$NAME"
-			} elseif {[llength $CONFIG]} {
-				# BD container
-				set bd_ref [file rootname \
-					[dict get $CONFIG CONFIG.ACTIVE_SYNTH_BD] \
-				]
-				lappend str_list "set $NAME \[create_bd_cell \\"
-				lappend str_list "\t-type container \\"
-				lappend str_list "\t-reference $bd_ref \\"
-				lappend str_list "\t$NAME \\"
-				lappend str_list "\]"
+			}
+		}
+	}
+	return $str_list
+}
+
+# Generate list of strings to create subsystem IP cells
+proc ::vbs::bd_util::generate_subsystem_ip_str_list {hier_dict} {
+	set str_list [list]
+	set cells [list]
+	if {[dict exists $hier_dict SUBSYSTEM_IP]} {
+		set cells [dict get $hier_dict SUBSYSTEM_IP]
+	}
+	dict for {cell properties} $cells {
+		dict with properties {
+			lappend str_list "set $NAME \[create_bd_cell \\"
+			lappend str_list "\t-type ip \\"
+			lappend str_list "\t-vlnv $VLNV \\"
+			lappend str_list "\t$NAME \\"
+			lappend str_list "\]"
+			if {[llength $CONFIG]} {
 				lappend str_list "set_property -dict \\"
 				lappend str_list "\t\[dict get \$cfg_dict $NAME CONFIG\] \\"
 				lappend str_list "\t\$$NAME"
@@ -340,14 +437,9 @@ proc ::vbs::bd_util::generate_hier_str_list {hier_dict} {
 	if {[dict exists $hier_dict HIER_CELLS]} {
 		set hier_cells [dict get $hier_dict HIER_CELLS]
 	}
-	dict for {hier_cell properties} [dict get $hier_dict HIER_CELLS] {
-		dict with properties {
-			# Exclude BD container and Subsystem IP
-			if {![llength $CONFIG]} {
-				lappend str_list \
-					"::vbs::${NAME}::create_hierarchy \$hier_cell $NAME"
-			}
-		}
+	dict for {hier_cell properties} $hier_cells {
+		set name [dict get $properties NAME]
+		lappend str_list "::vbs::${name}::create_hierarchy \$hier_cell $name"
 	}
 	return $str_list
 }
@@ -419,66 +511,61 @@ proc ::vbs::bd_util::generate_nets_str_list {hier_dict} {
 # Generate list of strings to check availability of required components
 proc ::vbs::bd_util::generate_check_proc {hier_dict fp} {
 	set name [dict get $hier_dict NAME]
-
 	set vivado_version [version -short]
 
-	set ips [list]
-	set refs [list]
-	set config [list]
-	set depends [list]
+	set ips_dict [dict create]
 	if {[dict exists $hier_dict IP_CELLS]} {
-		dict for {ip_cell properties} [dict get $hier_dict IP_CELLS] {
-			dict with properties {
-				set vlnv_type [lindex [split $VLNV ":"] 1]
-				set vlnv_ip_ref [lindex [split $VLNV ":"] 2]
-				# RTL module reference
-				if {$vlnv_type == "module_ref"} {
-					lappend refs $vlnv_ip_ref
-				# Other IP
-				} else {
-					lappend ips $VLNV
-				}
-				if {[llength $CONFIG]} {
-					lappend config $NAME
-				}
-			}
-		}
+		set ips_dict [dict merge $ips_dict [dict get $hier_dict IP_CELLS]]
 	}
-	if {[dict exists $hier_dict HIER_CELLS]} {
-		dict for {hier_cell properties} [dict get $hier_dict HIER_CELLS] {
-			dict with properties {
-				# Subsystem IP
-				if {[llength $VLNV]} {
-					lappend ips $VLNV
-					lappend config $NAME
-				# BD container
-				} elseif {[llength $CONFIG]} {
-					lappend refs $NAME
-					lappend config $NAME
-				} else {
-					lappend depends "::vbs::${NAME}::check_hierarchy"
-				}
-			}
-		}
+	if {[dict exists $hier_dict SUBSYSTEM_IP]} {
+		set ips_dict [dict merge $ips_dict [dict get $hier_dict SUBSYSTEM_IP]]
 	}
+	if {[dict exists $hier_dict AXI_NOC]} {
+		set ips_dict [dict merge $ips_dict [dict get $hier_dict AXI_NOC]]
+	}
+	set ips [list]
+	dict for {ip properties} $ips_dict {
+		lappend ips [dict get $properties VLNV]
+	}
+
+	set refs_dict [dict create]
+	if {[dict exists $hier_dict MODULE_REF]} {
+		set refs_dict [dict merge $refs_dict [dict get $hier_dict MODULE_REF]]
+	}
+	if {[dict exists $hier_dict BD_CONTAINER]} {
+		set refs_dict [dict merge $refs_dict [dict get $hier_dict BD_CONTAINER]]
+	}
+	set refs [list]
+	dict for {ip properties} $refs_dict {
+		lappend refs [dict get $properties REF_NAME]
+	}
+
+	set config_dict [dict create]
+	set config_dict [dict merge $ips_dict $refs_dict]
 	if {[dict exists $hier_dict INFT_PORTS]} {
-		dict for {hier_cell properties} [dict get $hier_dict INFT_PORTS] {
-			dict with properties {
-				if {[llength $CONFIG]} {
-					lappend config $NAME
-				}
-			}
-		}
+		set config_dict [dict merge $config_dict [dict get $hier_dict INFT_PORTS]]
 	}
 	if {[dict exists $hier_dict PORTS]} {
-		dict for {hier_cell properties} [dict get $hier_dict PORTS] {
-			dict with properties {
-				if {[llength $CONFIG]} {
-					lappend config $NAME
-				}
+		set config_dict [dict merge $config_dict [dict get $hier_dict PORTS]]
+	}
+	set config [list]
+	dict for {ip properties} $config_dict {
+		dict with properties {
+			if {[llength $CONFIG]} {
+				lappend config $NAME
 			}
 		}
 	}
+
+	set depends_dict [dict create]
+	if {[dict exists $hier_dict HIER_CELLS]} {
+		set depends_dict [dict get $hier_dict HIER_CELLS]
+	}
+	set depends [list]
+	dict for {ip properties} $depends_dict {
+		lappend depends "::vbs::[dict get $properties NAME]::check_hierarchy"
+	}
+
 	# Remove duplicates
 	set ips [lsort -unique $ips]
 	set refs [lsort -unique $refs]
@@ -566,6 +653,18 @@ proc ::vbs::bd_util::write_tcl {fname hier_dict} {
 	foreach str [generate_ip_cells_str_list $hier_dict] {
 		puts $fp "\t$str"
 	}
+	foreach str [generate_module_ref_str_list $hier_dict] {
+		puts $fp "\t$str"
+	}
+	foreach str [generate_axi_noc_str_list $hier_dict] {
+		puts $fp "\t$str"
+	}
+	foreach str [generate_bd_container_str_list $hier_dict] {
+		puts $fp "\t$str"
+	}
+	foreach str [generate_subsystem_ip_str_list $hier_dict] {
+		puts $fp "\t$str"
+	}
 	puts $fp "\n\t\# Create hierarchies"
 	foreach str [generate_hier_str_list $hier_dict] {
 		puts $fp "\t$str"
@@ -603,22 +702,6 @@ proc ::vbs::bd_util::write_tcl {fname hier_dict} {
 
 # Write configuration data
 proc ::vbs::bd_util::write_dict {fname hier_dict} {
-	set item_dict [dict create]
-	if {[dict exists $hier_dict INTF_PORTS]} {
-		set item_dict [dict merge $item_dict [dict get $hier_dict INTF_PORTS]]
-	}
-	if {[dict exists $hier_dict PORTS]} {
-		set item_dict [dict merge $item_dict [dict get $hier_dict PORTS]]
-	}
-	if {[dict exists $hier_dict IP_CELLS]} {
-		set item_dict [dict merge $item_dict [dict get $hier_dict IP_CELLS]]
-	}
-	if {[dict exists $hier_dict HIER_CELLS]} {
-		set item_dict [dict merge $item_dict [dict get $hier_dict HIER_CELLS]]
-	}
-
-	set name [dict get $hier_dict NAME]
-
 	if {[catch {open $fname a} fp]} {
 		catch {
 			::common::send_msg_id {VBS 07-009} {ERROR} \
@@ -627,17 +710,29 @@ proc ::vbs::bd_util::write_dict {fname hier_dict} {
 		return 1
 	}
 
+	set name [dict get $hier_dict NAME]
 	puts $fp "\nset ::vbs::${name}::cfg_dict \[dict create\]"
+
+	set item_dict [dict create]
+	if {[dict exists $hier_dict INTF_PORTS]} {
+		set item_dict [dict merge $item_dict [dict get $hier_dict INTF_PORTS]]
+	}
+	if {[dict exists $hier_dict IP_CELLS]} {
+		set item_dict [dict merge $item_dict [dict get $hier_dict IP_CELLS]]
+	}
+	if {[dict exists $hier_dict MODULE_REF]} {
+		set item_dict [dict merge $item_dict [dict get $hier_dict MODULE_REF]]
+	}
+	if {[dict exists $hier_dict SUBSYSTEM_IP]} {
+		set item_dict [dict merge $item_dict [dict get $hier_dict SUBSYSTEM_IP]]
+	}
+	if {[dict exists $hier_dict HIER_CELLS]} {
+		set item_dict [dict merge $item_dict [dict get $hier_dict HIER_CELLS]]
+	}
 	dict for {item properties} $item_dict {
 		dict with properties {
 			if {[llength $CONFIG]} {
-				if {$CLASS == "bd_port"} {
-					puts $fp "\n\# Port"
-				} elseif {$CLASS != "bd_intf_port" && $TYPE == "hier"} {
-					puts $fp "\n\# BD container"
-				} else {
-					puts $fp "\n\# $VLNV"
-				}
+				puts $fp "\n\# $VLNV"
 				puts $fp "dict set ::vbs::${name}::cfg_dict $NAME CONFIG\
 					\[list \\"
 				dict for {key value} $CONFIG {
@@ -645,19 +740,68 @@ proc ::vbs::bd_util::write_dict {fname hier_dict} {
 				}
 				puts $fp "\]"
 			}
-			if {[dict exists $properties INTF_PINS]} {
-				dict for {intf_pin props} $INTF_PINS {
-					# Write AXI-NOX interface pin properties
-					if {[dict exists $props CONFIG CONFIG.NOC_PARAMS]} {
-						puts $fp "dict set ::vbs::${name}::cfg_dict $NAME INTF_PINS [dict get $props NAME] CONFIG\
-							\[list \\"
-						dict for {key value} [dict get $props CONFIG] {
-							# Setting CONFIG.FREQ_HZ results in a critical warning
-							if {$key != "CONFIG.FREQ_HZ"} {
+		}
+	}
+
+	if {[dict exists $hier_dict PORTS]} {
+		dict for {item properties} [dict get $hier_dict PORTS] {
+			dict with properties {
+				if {[llength $CONFIG]} {
+					puts $fp "\n\# Port"
+					puts $fp "dict set ::vbs::${name}::cfg_dict $NAME CONFIG\
+						\[list \\"
+					dict for {key value} $CONFIG {
+						puts $fp "\t$key \{$value\} \\"
+					}
+					puts $fp "\]"
+				}
+			}
+		}
+	}
+
+	if {[dict exists $hier_dict BD_CONTAINER]} {
+		dict for {item properties} [dict get $hier_dict BD_CONTAINER] {
+			dict with properties {
+				if {[llength $CONFIG]} {
+					puts $fp "\n\# BD container"
+					puts $fp "dict set ::vbs::${name}::cfg_dict $NAME CONFIG\
+						\[list \\"
+					dict for {key value} $CONFIG {
+						puts $fp "\t$key \{$value\} \\"
+					}
+					puts $fp "\]"
+				}
+			}
+		}
+	}
+
+	if {[dict exists $hier_dict AXI_NOC]} {
+		dict for {item properties} [dict get $hier_dict AXI_NOC] {
+			dict with properties {
+				if {[llength $CONFIG]} {
+					puts $fp "\n\# $VLNV"
+					puts $fp "dict set ::vbs::${name}::cfg_dict $NAME CONFIG\
+						\[list \\"
+					dict for {key value} $CONFIG {
+						puts $fp "\t$key \{$value\} \\"
+					}
+					puts $fp "\]"
+				}
+				if {[dict exists $properties INTF_PINS]} {
+					dict for {intf_pin props} $INTF_PINS {
+						set cfg_dict [dict get $props CONFIG]
+						# Setting CONFIG.FREQ_HZ is prohibited, remove it
+						set cfg_dict [dict remove $cfg_dict CONFIG.FREQ_HZ]
+						# Write AXI-NOX interface pin properties
+						if {[llength $cfg_dict]} {
+							puts $fp "dict set ::vbs::${name}::cfg_dict $NAME\
+								INTF_PINS [dict get $props NAME] CONFIG\
+								\[list \\"
+							dict for {key value} $cfg_dict {
 								puts $fp "\t$key \{$value\} \\"
 							}
+							puts $fp "\]"
 						}
-						puts $fp "\]"
 					}
 				}
 			}
