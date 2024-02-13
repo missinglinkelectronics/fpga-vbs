@@ -829,7 +829,7 @@ proc ::vbs::bd_util::export_single_hier {dir hier gen_wrapper dict_exclude \
 	# Get dictionary representation of hierarchy cells
 	set hier_list_dict [dict create]
 	if {$tree} {
-		set hier_list [get_hier_list $hier]
+		set hier_list [get_hierarchies $hier]
 	} else {
 		set hier_list $hier
 	}
@@ -971,7 +971,7 @@ proc ::vbs::bd_util::export_single_hier {dir hier gen_wrapper dict_exclude \
 			puts stderr "Could not open file $tcl_file for writing"
 			return 1
 		}
-		if {$root} {
+		if {$hier == "/"} {
 			puts $fp_tcl "\n\# Create Block Design and add root hierarchy"
 			puts $fp_tcl "create_bd_design $base_name"
 			puts $fp_tcl "current_bd_design $base_name"
@@ -1128,6 +1128,8 @@ proc ::vbs::bd_util::export_hier {args} {
 		}
 	}
 
+	# Print warning for duplicate hierarchies
+	get_hier_list
 	# Selected hierarchy cells
 	set hier_sel [list]
 	# Matching hierarchy cells
@@ -1137,7 +1139,7 @@ proc ::vbs::bd_util::export_hier {args} {
 	}
 	# All hierarchy cells
 	if {![llength $args]} {
-		set hier_sel [get_hier_list /]
+		set hier_sel [get_hierarchies /]
 	}
 
 	foreach hier $hier_sel {
@@ -1257,6 +1259,22 @@ proc ::vbs::bd_util::set_header_file {args} {
 	}
 }
 
+proc ::vbs::bd_util::get_hierarchies {hier} {
+	set hier_dict [get_hier_dict $hier]
+	set hier_list [list]
+	if {[dict exists $hier_dict HIER_CELLS]} {
+		set hier_list [dict keys [dict get $hier_dict HIER_CELLS]]
+	}
+	if {![llength $hier_list]} {
+		return $hier
+	}
+	set sub_hier_list [list $hier]
+	foreach sub_hier $hier_list {
+		lappend sub_hier_list {*}[get_hierarchies $sub_hier]
+	}
+	return $sub_hier_list
+}
+
 proc ::vbs::bd_util::get_hier_list_usage {} {
 	puts "get_hier_list
 
@@ -1298,25 +1316,7 @@ proc ::vbs::bd_util::get_hier_list {args} {
 	if {![llength $args]} {
 		set args "/"
 	}
-
-	# Select hierarchy cells which are no block design container
-	set hier_cell_filter "TYPE == hier && CONFIG.ACTIVE_SYNTH_BD == \"\" && VLNV == \"\""
-	set root_cell [get_bd_cells -filter $hier_cell_filter $args]
-	if {![llength $root_cell]} {
-		return ""
-	}
-	if {$root_cell != "/"} {
-		# Match target sub-hierarchy
-		set hier_cell_filter "$hier_cell_filter && PATH =~ $root_cell/*"
-	}
-	set hier_list [get_bd_cells -quiet -hier -filter $hier_cell_filter]
-
-	# Exclude hierarchy cells that are part of BD container or Subsystem IPs
-	set excl_filter "TYPE == hier && (CONFIG.ACTIVE_SYNTH_BD != \"\" || VLNV != \"\")"
-	set excl_hier [get_bd_cells -quiet -hier -filter $excl_filter]
-	foreach item $excl_hier {
-		set hier_list [lsearch -inline -all -not -glob $hier_list $item/*]
-	}
+	set hier_list [get_hierarchies $args]
 
 	# Sort list from leaf to root hierarchy
 	set sort_list [list]
@@ -1328,7 +1328,6 @@ proc ::vbs::bd_util::get_hier_list {args} {
 	foreach item $sort_list {
 		lappend hier_list [lindex $item 1]
 	}
-	set hier_list [linsert $hier_list end $root_cell]
 
 	# Remove and report duplicates
 	set hier_dict [dict create]
@@ -1465,7 +1464,7 @@ proc ::vbs::bd_util::print_hier {args} {
 	}
 	# All hierarchy cells
 	if {![llength $args]} {
-		set hier_sel [get_hier_list /]
+		set hier_sel [get_hierarchies /]
 	}
 
 	foreach hier_cell $hier_sel {
@@ -2029,7 +2028,7 @@ proc ::vbs::bd_util::validate_intf {args} {
 	}
 	# All hierarchy cells
 	if {![llength $args]} {
-		foreach hier [get_hier_list /] {
+		foreach hier [get_hierarchies /] {
 			lappend hier_sel [get_bd_cells $hier]
 		}
 	}
