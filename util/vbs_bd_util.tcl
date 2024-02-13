@@ -166,10 +166,11 @@ proc ::vbs::bd_util::get_root_dict {hier_dict} {
 # Generate list of strings to create interface ports
 proc ::vbs::bd_util::generate_intf_ports_str_list {hier_dict} {
 	set str_list [list]
-	if {![dict exists $hier_dict INTF_PORTS]} {
-		return $str_list
+	set intf_ports [list]
+	if {[dict exists $hier_dict INTF_PORTS]} {
+		set intf_ports [dict get $hier_dict INTF_PORTS]
 	}
-	dict for {intf_port properties} [dict get $hier_dict INTF_PORTS] {
+	dict for {intf_port properties} $intf_ports {
 		dict with properties {
 			lappend str_list "set $NAME \[create_bd_intf_port \\"
 			lappend str_list "\t-vlnv $VLNV \\"
@@ -189,10 +190,11 @@ proc ::vbs::bd_util::generate_intf_ports_str_list {hier_dict} {
 # Generate list of strings to create ports
 proc ::vbs::bd_util::generate_ports_str_list {hier_dict} {
 	set str_list [list]
-	if {![dict exists $hier_dict PORTS]} {
-		return $str_list
+	set ports [list]
+	if {[dict exists $hier_dict PORTS]} {
+		set ports [dict get $hier_dict PORTS]
 	}
-	dict for {port properties} [dict get $hier_dict PORTS] {
+	dict for {port properties} $ports {
 		dict with properties {
 			lappend str_list "set $NAME \[create_bd_port \\"
 			if {[llength $LEFT]} {
@@ -216,10 +218,11 @@ proc ::vbs::bd_util::generate_ports_str_list {hier_dict} {
 # Generate list of strings to create interface pins
 proc ::vbs::bd_util::generate_intf_pins_str_list {hier_dict} {
 	set str_list [list]
-	if {![dict exists $hier_dict INTF_PINS]} {
-		return $str_list
+	set intf_pins [list]
+	if {[dict exists $hier_dict INTF_PINS]} {
+		set intf_pins [dict get $hier_dict INTF_PINS]
 	}
-	dict for {intf_pin properties} [dict get $hier_dict INTF_PINS] {
+	dict for {intf_pin properties} $intf_pins {
 		dict with properties {
 			lappend str_list "set $NAME \[create_bd_intf_pin \\"
 			lappend str_list "\t-vlnv $VLNV \\"
@@ -234,10 +237,11 @@ proc ::vbs::bd_util::generate_intf_pins_str_list {hier_dict} {
 # Generate list of strings to create pins
 proc ::vbs::bd_util::generate_pins_str_list {hier_dict} {
 	set str_list [list]
-	if {![dict exists $hier_dict PINS]} {
-		return $str_list
+	set pins [list]
+	if {[dict exists $hier_dict PINS]} {
+		set pins [dict get $hier_dict PINS]
 	}
-	dict for {pin properties} [dict get $hier_dict PINS] {
+	dict for {pin properties} $pins {
 		dict with properties {
 			lappend str_list "set $NAME \[create_bd_pin \\"
 			if {[llength $LEFT]} {
@@ -256,11 +260,11 @@ proc ::vbs::bd_util::generate_pins_str_list {hier_dict} {
 # Generate list of strings to create ip cells
 proc ::vbs::bd_util::generate_ip_cells_str_list {hier_dict} {
 	set str_list [list]
-	set ip_cells ""
+	set cells [list]
 	if {[dict exists $hier_dict IP_CELLS]} {
-		set ip_cells [dict get $hier_dict IP_CELLS]
+		set cells [dict get $hier_dict IP_CELLS]
 	}
-	dict for {ip_cell properties} $ip_cells {
+	dict for {cell properties} $cells {
 		dict with properties {
 			set vlnv_type [lindex [split $VLNV ":"] 1]
 			set vlnv_ip_ref [lindex [split $VLNV ":"] 2]
@@ -332,8 +336,9 @@ proc ::vbs::bd_util::generate_ip_cells_str_list {hier_dict} {
 # Generate list of strings to create hierarchy cells
 proc ::vbs::bd_util::generate_hier_str_list {hier_dict} {
 	set str_list [list]
-	if {![dict exists $hier_dict HIER_CELLS]} {
-		return $str_list
+	set hier_cells [list]
+	if {[dict exists $hier_dict HIER_CELLS]} {
+		set hier_cells [dict get $hier_dict HIER_CELLS]
 	}
 	dict for {hier_cell properties} [dict get $hier_dict HIER_CELLS] {
 		dict with properties {
@@ -347,14 +352,15 @@ proc ::vbs::bd_util::generate_hier_str_list {hier_dict} {
 	return $str_list
 }
 
-# Generate list of strings to create interfac net connections
+# Generate list of strings to create interface net connections
 proc ::vbs::bd_util::generate_intf_nets_str_list {hier_dict} {
 	set str_list [list]
-	if {![dict exists $hier_dict INTF_NETS]} {
-		return $str_list
+	set intf_nets [list]
+	if {[dict exists $hier_dict INTF_NETS]} {
+		set intf_nets [dict get $hier_dict INTF_NETS]
 	}
 	set hier_path [dict get $hier_dict PATH]
-	dict for {intf_net intf_pins_ports} [dict get $hier_dict INTF_NETS] {
+	dict for {intf_net intf_pins_ports} $intf_nets {
 		lappend str_list "connect_bd_intf_net -intf_net\
 			[dict get $hier_dict INTF_NETS $intf_net NAME] \\"
 		if {[dict exists $intf_pins_ports INTF_PINS]} {
@@ -381,11 +387,12 @@ proc ::vbs::bd_util::generate_intf_nets_str_list {hier_dict} {
 # Generate list of strings to create net connections
 proc ::vbs::bd_util::generate_nets_str_list {hier_dict} {
 	set str_list [list]
-	if {![dict exists $hier_dict NETS]} {
-		return $str_list
+	set nets [list]
+	if {[dict exists $hier_dict NETS]} {
+		set nets [dict get $hier_dict NETS]
 	}
 	set hier_path [dict get $hier_dict PATH]
-	dict for {net pins_ports} [dict get $hier_dict NETS] {
+	dict for {net pins_ports} $nets {
 		lappend str_list "connect_bd_net -net\
 			[dict get $hier_dict NETS $net NAME] \\"
 		if {[dict exists $pins_ports PINS]} {
