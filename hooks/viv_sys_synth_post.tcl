@@ -23,7 +23,7 @@
 ##
 ################################################################################
 ##
-##  File Summary   : Vivado post synthesis hook script
+##  File Summary   : AMD Vivado TM post synthesis hook script
 ##
 ################################################################################
 

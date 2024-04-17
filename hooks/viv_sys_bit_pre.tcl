@@ -24,7 +24,7 @@
 ##
 ################################################################################
 ##
-##  File Summary   : Vivado pre bitstream hook script
+##  File Summary   : AMD Vivado TM pre bitstream hook script
 ##
 ################################################################################
 

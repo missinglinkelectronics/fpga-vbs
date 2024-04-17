@@ -18,7 +18,7 @@ variable script_folder
 set script_folder [_tcl::get_script_folder]
 
 ################################################################
-# Check if script is running in correct Vivado version.
+# Check if script is running in correct AMD Vivado TM version.
 ################################################################
 set scripts_vivado_version "${req_vivado_vers}"
 set current_vivado_version [version -short]

@@ -25,23 +25,23 @@
 ################################################################################
 -->
 
-# Vivado Build System
-To facilitate an FPGA Build Environment which can be automated, for example for Continuous Integration (CI), and which ensures fully reproducible results later in the development and product lifecycle, the Team at Missing Link Electronics has put together a collection of scripts. Currently focused on the Xilinx Vivado toolchain (Version 2016.4 or newer) and tested under Ubuntu Linux 16.04 LTS and 18.04 LTS, this scripted FPGA Build Environment has been made available here at GitHub under open source Apache 2.0 license.
+# MLE FPGA Buildsystem for AMD Vivado TM
+To facilitate an FPGA Build Environment which can be automated, for example for Continuous Integration (CI), and which ensures fully reproducible results later in the development and product lifecycle, the Team at Missing Link Electronics has put together a collection of scripts. Currently focused on the AMD Vivado TM toolchain (Version 2016.4 or newer) and tested under Ubuntu Linux 16.04 LTS and 18.04 LTS, this scripted FPGA Build Environment has been made available here at GitHub under open source Apache 2.0 license.
 
-The following is a description of the FPGA project structure and build scripts to run Xilinx Vivado builds in batch mode. The build scripts run under Linux and require the `bash` and common software such as `sed`, `grep`, etc.
+The following is a description of the FPGA project structure and build scripts to run Vivado builds in batch mode. The build scripts run under Linux and require the `bash` and common software such as `sed`, `grep`, etc.
 
 ## Before you start
 Place the files alongside this README file in a folder (e.g. named *scripts*) inside your project folder. Add the scripts-repository as GIT submodule to your repository or add the scripts folder to your project's *.gitignore* file. In addition, add the default build output folder *build* to your *.gitignore* file.
 
 ## add_flavor.sh
-`add_flavor.sh` will add a Xilinx FPGA project/sub-project stub to the project's base directory. Sub-projects will be called **flavors** in the following.
+`add_flavor.sh` will add a FPGA project/sub-project stub to the project's base directory. Sub-projects will be called **flavors** in the following.
 
     add_flavor.sh [flavor_name] [options]
         flavor_name     : Sub-project to be added with name <flavor_name>
         -p [prj_config] : Project configuration file relative to base directory
         -h, -?          : Print usage
 
-Before using the script, set the variables in *project.cfg* if a project wide configuration file with settings is used. Variables such as VIVADO_VERSION and PART will overwrite placeholder strings in the template/stub files that will be copied. The source template files that will be copied are located in the *templates* folder. To initialize a new Xilinx FPGA project run `add_flavor.sh`. The template files will be copied to the project's base directory. You can start with the default flavor (not using the -f option) which will not create a flavor subfolder. When you need to add flavors afterwards, use the *-f* option to generate the subfolder and move the existing folders from the base directory to the flavor subfolder.
+Before using the script, set the variables in *project.cfg* if a project wide configuration file with settings is used. Variables such as VIVADO_VERSION and PART will overwrite placeholder strings in the template/stub files that will be copied. The source template files that will be copied are located in the *templates* folder. To initialize a new FPGA project run `add_flavor.sh`. The template files will be copied to the project's base directory. You can start with the default flavor (not using the -f option) which will not create a flavor subfolder. When you need to add flavors afterwards, use the *-f* option to generate the subfolder and move the existing folders from the base directory to the flavor subfolder.
 
 See script [examples](#add_flavorsh-examples) at the end of this file.
 

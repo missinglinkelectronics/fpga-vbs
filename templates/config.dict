@@ -10,7 +10,7 @@ CDF_VER "1.4.1"
 PRJ_NAME "prj0"
 # Mandatory
 MDT_PARAMS {
-    # Vivado toolchain version string e.g. 2017.4
+    # AMD Vivado TM toolchain version string e.g. 2017.4
     req_vivado_vers "<VIVADO_VERSION>"
     # Target language e.g. Verilog (or VHDL)
     target_language "<TARGET_LANGUAGE>"

@@ -24,8 +24,8 @@
 ##
 ################################################################################
 ##
-##  File Summary   : Add Xilinx FPGA project flavor stub. Set project specific
-##                   settings in project.cfg if required.
+##  File Summary   : Add FPGA project flavor stub. Set project specific settings
+##                   in project.cfg if required.
 ##
 ##  Usage          : add_flavor.sh [flavor_name] [options]
 ##

@@ -24,7 +24,7 @@
 ##
 ################################################################################
 ##
-##  File Summary   : Vivado pre synthesis hook script
+##  File Summary   : AMD Vivado TM pre synthesis hook script
 ##
 ################################################################################
 

@@ -24,7 +24,7 @@
 ################################################################################
 ##
 ##  File Summary   : Post bitstream script. .sysdef and .ltx files are not yet
-##                   created when Vivado's post-bitstream hook is executed.
+##                   created when AMD Vivado TM post-bitstream hook is executed.
 ##
 ################################################################################
 

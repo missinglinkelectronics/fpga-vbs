@@ -24,8 +24,8 @@
 ################################################################################
 ##
 ##  File Summary   : Post synthesis script. Some files are not yet created
-##                   when Vivado's post-implementation hook is executed, copy
-##                   them here.
+##                   when AMD Vivado TM post-implementation hook is executed,
+##                   copy them here.
 ##
 ################################################################################
 
