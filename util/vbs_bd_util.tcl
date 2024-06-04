@@ -624,8 +624,56 @@ proc ::vbs::bd_util::generate_check_proc {hier_dict fp} {
 	puts $fp "\}"
 }
 
+# Get dictionary containing address map properties
+proc ::vbs::bd_util::get_address_assignments {} {
+	# Create dictionary containing all required properties
+	set addr_segs [get_bd_addr_segs]
+	set addr_dict [dict create]
+	foreach addr_seg $addr_segs {
+		set offset [get_property OFFSET $addr_seg]
+		set range [get_property RANGE $addr_seg]
+		if {[llength $offset] && [llength $range]} {
+			set space [get_bd_addr_spaces -of_objects $addr_seg]
+			set seg [get_bd_addr_segs -of_objects $addr_seg]
+			dict set addr_dict $addr_seg "OFFSET $offset RANGE $range\
+				SPACE [regsub {^/} $space ""]\
+				SEG [regsub {^/} $seg ""]"
+		}
+	}
+
+	# Find largest hex string length
+	set hex_str_len 0
+	dict for {addr_seg properties} $addr_dict {
+		dict with properties {
+			set int_value [scan $OFFSET %x]
+			set hex_value [format "%X" $int_value]
+			set str_len [string length $hex_value]
+			if {$str_len > $hex_str_len} {
+				set hex_str_len $str_len
+			}
+			set int_value [scan $RANGE %x]
+			set hex_value [format "%X" $int_value]
+			set str_len [string length $hex_value]
+			if {$str_len > $hex_str_len} {
+				set hex_str_len $str_len
+			}
+		}
+	}
+
+	# Expand all offsets and ranges to largest hex string length
+	set format_string [format "0x%%0%dX" $hex_str_len]
+	dict for {addr_seg properties} $addr_dict {
+		set offset [format $format_string [dict get $properties OFFSET]]
+		set range [format $format_string [dict get $properties RANGE]]
+		dict set addr_dict $addr_seg OFFSET $offset
+		dict set addr_dict $addr_seg RANGE $range
+	}
+
+	return $addr_dict
+}
+
 # Write hierarchy to tcl
-proc ::vbs::bd_util::write_tcl {fname hier_dict} {
+proc ::vbs::bd_util::write_tcl {fname hier_dict csv_addr} {
 	if {[catch {open $fname a} fp]} {
 		puts stderr "Could not open file $fname for writing"
 		return 1
@@ -700,8 +748,22 @@ proc ::vbs::bd_util::write_tcl {fname hier_dict} {
 
 	if {$root} {
 		if {[llength [get_bd_addr_spaces]]} {
-			puts $fp "\n\tassign_bd_address -import_from_file\
-				\[get_files $name.csv\]"
+			puts $fp "\n\t\# Create address segments"
+			if {$csv_addr} {
+				puts $fp "\tassign_bd_address -import_from_file\
+					\[get_files $name.csv\]"
+			} else {
+				dict for {addr_seg properties} [get_address_assignments] {
+					dict with properties {
+						puts $fp "\tassign_bd_address\
+							-offset $OFFSET\
+							-range $RANGE\
+							-target_address_space \[get_bd_addr_spaces $SPACE\]\
+							\[get_bd_addr_segs $SEG\]\
+							-force"
+					}
+				}
+			}
 			puts $fp ""
 		}
 		puts $fp "\tvalidate_bd_design"
@@ -840,7 +902,8 @@ proc ::vbs::bd_util::write_csv {fname} {
 
 # Write files for one single hierarchy
 proc ::vbs::bd_util::export_single_hier {dir hier gen_wrapper dict_exclude \
-                                         dict_only bd_only force_name tree} {
+                                         dict_only bd_only csv_addr force_name \
+                                         tree} {
 	if {![file isdirectory $dir]} {
 		puts stderr "No such directory '$dir'"
 		return 1
@@ -880,7 +943,7 @@ proc ::vbs::bd_util::export_single_hier {dir hier gen_wrapper dict_exclude \
 	set dict_file [file join $dir "$base_name.dict"]
 
 	# Write address assignments CSV file
-	if {$hier == "/" && $dict_only == 0} {
+	if {$hier == "/" && $dict_only == 0 && $csv_addr == 1} {
 		write_csv $csv_file
 		lappend filelist_src $csv_file
 	}
@@ -966,7 +1029,7 @@ proc ::vbs::bd_util::export_single_hier {dir hier gen_wrapper dict_exclude \
 	# Write BD and dictionary
 	if {$dict_only == 0} {
 		dict for {sub_hier sub_dict} $hier_list_dict {
-			write_tcl $tcl_file $sub_dict
+			write_tcl $tcl_file $sub_dict $csv_addr
 		}
 		::common::send_msg_id {BD 5-148} {INFO} "Tcl file written <$tcl_file>."
 	}
@@ -1022,7 +1085,7 @@ Export procedures creating the Block Design hierarchy cells
 
 Syntax:
 export_hier \[-dir <arg>\] \[-hier\] \[-gen_wrapper\] \[-dict_exclude\]\
-\[-dict_only\] \[-bd_only\] \[-name <arg>\] \[-help\] \[<args>\]
+\[-dict_only\] \[-bd_only\] \[-csv_addr\] \[-name <arg>\] \[-help\] \[<args>\]
 
 Usage:
   Name               Description
@@ -1033,6 +1096,7 @@ Usage:
   \[-dict_exclude\]    Separate BD from config
   \[-dict_only\]       Generate BD .dict files only
   \[-bd_only\]         Generate BD .tcl files only
+  \[-csv_addr\]        Generate address assignments CSV file
   \[-name <arg>\]      Overwrite hierarchy name
   \[-help\]            Print usage
   \[<args>\]           List of hierarchy cells
@@ -1096,6 +1160,14 @@ proc ::vbs::bd_util::export_hier {args} {
 		set dict_only 0
 		set bd_only 0
 		set dict_exclude 1
+	}
+
+	set csv_addr 0
+	set idx_opt [lsearch $args "-csv_addr"]
+	if {$idx_opt >= 0} {
+		# Remove option from args
+		set args [lreplace $args $idx_opt $idx_opt]
+		set csv_addr 1
 	}
 
 	set dir [pwd]
@@ -1164,7 +1236,7 @@ proc ::vbs::bd_util::export_hier {args} {
 
 	foreach hier $hier_sel {
 		export_single_hier $dir $hier $gen_wrapper $dict_exclude $dict_only \
-			$bd_only $force_name $tree
+			$bd_only $csv_addr $force_name $tree
 	}
 }
 
