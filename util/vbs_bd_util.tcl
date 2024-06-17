@@ -200,6 +200,11 @@ proc ::vbs::bd_util::get_root_dict {hier_dict} {
 		dict set hier_dict INTF_PORTS $intf_port [get_property_dict $intf_port]
 	}
 
+	# Vivado 2024 returns top level (intf)-ports also as (intf)-pins. Remove
+	# them to avoid duplicate (intf)-pin creation for the bd top level
+	dict unset hier_dict PINS
+	dict unset hier_dict INTF_PINS
+
 	return $hier_dict
 }
 
