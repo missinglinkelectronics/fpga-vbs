@@ -92,7 +92,7 @@ proc ::vbs::bd_util::get_hier_dict {hier} {
 	}
 
 	# IP cells - exclude AXI-NOC and Module reference
-	set filter "TYPE == ip && VLNV !~ xilinx.com:ip:axi_noc:* && VLNV !~ *:module_ref:*:*"
+	set filter "TYPE == ip && VLNV !~ xilinx.com:ip:axi*_noc:* && VLNV !~ *:module_ref:*:*"
 	set ip_cells [get_bd_cells -quiet -filter $filter $hier/*]
 	foreach cell $ip_cells {
 		dict set hier_dict IP_CELLS $cell [get_property_dict $cell]
@@ -110,7 +110,7 @@ proc ::vbs::bd_util::get_hier_dict {hier} {
 	}
 
 	# AXI-NOC
-	set filter "TYPE == ip && VLNV =~ xilinx.com:ip:axi_noc:*"
+	set filter "TYPE == ip && VLNV =~ xilinx.com:ip:axi*_noc:*"
 	set axi_noc_cells [get_bd_cells -quiet -filter $filter $hier/*]
 	foreach cell $axi_noc_cells {
 		dict set hier_dict AXI_NOC $cell [get_property_dict $cell]
