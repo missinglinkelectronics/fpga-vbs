@@ -42,6 +42,7 @@ namespace eval vbs {
 		namespace export add_filelist
 		namespace export check_hier
 		namespace export validate_intf
+		namespace export rename_nets
 		namespace export write_filelist
 	}
 }
@@ -2169,6 +2170,278 @@ proc ::vbs::bd_util::validate_intf {args} {
 	}
 }
 
+proc ::vbs::bd_util::rename_nets_usage {} {
+	puts "rename_nets
+
+Description:
+Auto-rename nets and interface nets
+
+Syntax:
+rename_nets \[-help\] \[-hier\] \[<args>\]
+
+Usage:
+  Name               Description
+  ------------------------------
+  \[-help\]            Print usage
+  \[-hier\]            Hierarchical
+  \[<args>\]           List of hierarchies
+                     Default: *"
+	return
+}
+
+# Auto-rename nets and interface nets
+proc ::vbs::bd_util::rename_nets {args} {
+	if {[lsearch $args "help"] >= 0 || [lsearch $args "-help"] >= 0} {
+		return [rename_nets_usage]
+	}
+	if {[catch {current_bd_design}]} {
+		return
+	}
+
+	set hier_flag 0
+	set idx_opt [lsearch $args "-hier"]
+	if {$idx_opt >= 0} {
+		# Remove option from args
+		set args [lreplace $args $idx_opt $idx_opt]
+		set hier_flag 1
+	}
+
+	# Selected hierarchy cells
+	set hier_sel [list]
+	# Matching hierarchy cells
+	set hier_cell_filter "TYPE == hier && CONFIG.ACTIVE_SYNTH_BD == \"\" &&\
+		VLNV == \"\""
+	foreach arg $args {
+		lappend hier_sel [get_bd_cells -filter $hier_cell_filter $arg]
+	}
+	# All hierarchy cells
+	if {![llength $args]} {
+		foreach hier [get_hierarchies /] {
+			lappend hier_sel [get_bd_cells $hier]
+		}
+	}
+
+	# Apply hierarchical flag
+	set hier_cells [list]
+	foreach hier $hier_sel {
+		if {$hier_flag} {
+			lappend hier_cells [get_hierarchies $hier]
+		} else {
+			lappend hier_cells $hier
+		}
+	}
+	# Remove duplicates
+	set hier_cells [lsort -unique [join $hier_cells]]
+
+	set net_rename_count 0
+	set intf_net_rename_count 0
+	foreach hier $hier_cells {
+		# Select all nets of one hierarchy
+		set nets [get_bd_nets -quiet $hier/*]
+		foreach net $nets {
+			# Get pins connected via the net
+			set pins [get_bd_pins -quiet -of_objects $net]
+			# Check for output and input direction pins
+			set o_pins [list]
+			set i_pins [list]
+			foreach pin $pins {
+				set dir [get_property DIR $pin]
+				if {$dir == "O"} {
+					lappend o_pins $pin
+				}
+				if {$dir == "I"} {
+					lappend i_pins $pin
+				}
+			}
+			# Find pin with upper boundary net name is the actual net
+			set upper_net_pin ""
+			foreach pin $o_pins {
+				set upper_net [get_bd_nets -quiet -boundary_type upper\
+					-of_objects $pin]
+				if {[llength $upper_net] && $upper_net == $net} {
+					set upper_net_pin $pin
+					break
+				}
+			}
+			# Find pin with lower boundary net name is the actual net
+			set lower_net_pin ""
+			foreach pin $i_pins {
+				set lower_net [get_bd_nets -quiet -boundary_type lower\
+					-of_objects $pin]
+				if {[llength $lower_net] && $lower_net == $net} {
+					set lower_net_pin $pin
+					break
+				}
+			}
+			# Get ports connected via the net
+			set ports [get_bd_ports -quiet -of_objects $net]
+			# Check for output and input direction ports
+			set o_ports [list]
+			set i_ports [list]
+			foreach port $ports {
+				# Ports retrieved by nets are broken
+				if {$hier != "/"} {
+					continue
+				}
+				set dir [get_property DIR $port]
+				if {$dir == "O"} {
+					lappend o_ports $port
+				}
+				if {$dir == "I"} {
+					lappend i_ports $port
+				}
+			}
+			# Find port with upper boundary net name is the actual net
+			set upper_net_port ""
+			foreach port $o_ports {
+				set upper_net [get_bd_nets -quiet -boundary_type upper\
+					-of_objects $port]
+				if {[llength $upper_net] && $upper_net == $net} {
+					set upper_net_port $port
+					break
+				}
+			}
+			# Find port with lower boundary net name is the actual net
+			set lower_net_port ""
+			foreach port $i_ports {
+				set lower_net [get_bd_nets -quiet -boundary_type lower\
+					-of_objects $port]
+				if {[llength $lower_net] && $lower_net == $net} {
+					set lower_net_port $port
+					break
+				}
+			}
+			# Pin prioritization
+			set target_pin [lindex $pins 0]
+			if {[llength $upper_net_port]} {
+				set target_pin $upper_net_port
+			} elseif {[llength $lower_net_port]} {
+				set target_pin $lower_net_port
+			} elseif {[llength $upper_net_pin]} {
+				set target_pin $upper_net_pin
+			} elseif {[llength $lower_net_pin]} {
+				set target_pin $lower_net_pin
+			}
+			# Rename by path name
+			set path [get_property PATH $target_pin]
+			set path_str_list [split $path "/"]
+			set net_name [lindex $path_str_list end]
+			if {[llength $path_str_list] >= 2 && \
+			    [llength [lindex $path_str_list end-1]]} {
+				set net_name "[lindex $path_str_list end-1]_${net_name}"
+			}
+			if {$net_name != [get_property NAME [get_bd_nets $net]]} {
+				set_property NAME $net_name [get_bd_nets $net]
+				incr net_rename_count
+			}
+		}
+
+		# Select all interface nets of one hierarchy
+		set intf_nets [get_bd_intf_nets -quiet $hier/*]
+		foreach intf_net $intf_nets {
+			# Get interface pins connected via the intf_net
+			set intf_pins [get_bd_intf_pins -quiet -of_objects $intf_net]
+			# Check for master and slave mode interface pins
+			set m_intf_pins [list]
+			set s_intf_pins [list]
+			foreach intf_pin $intf_pins {
+				set mode [get_property MODE $intf_pin]
+				if {$mode == "Master"} {
+					lappend m_intf_pins $intf_pin
+				}
+				if {$mode == "Slave"} {
+					lappend s_intf_pins $intf_pin
+				}
+			}
+			# Find intf_pin with upper boundary net name is the actual intf_net
+			set upper_net_intf_pin ""
+			foreach intf_pin $m_intf_pins {
+				set upper_intf_net [get_bd_intf_nets -quiet\
+					-boundary_type upper -of_objects $intf_pin]
+				if {[llength $upper_intf_net] && $upper_intf_net == $intf_net} {
+					set upper_net_intf_pin $intf_pin
+					break
+				}
+			}
+			# Find intf_pin with lower boundary net name is the actual intf_net
+			set lower_net_intf_pin ""
+			foreach intf_pin $s_intf_pins {
+				set lower_intf_net [get_bd_intf_nets -quiet\
+					-boundary_type lower -of_objects $intf_pin]
+				if {[llength $lower_intf_net] && $lower_intf_net == $intf_net} {
+					set lower_net_intf_pin $intf_pin
+					break
+				}
+			}
+			# Get interface ports connected via the intf_net
+			set intf_ports [get_bd_intf_ports -quiet -of_objects $intf_net]
+			# Check for master and slave mode interface ports
+			set m_intf_ports [list]
+			set s_intf_ports [list]
+			foreach intf_port $intf_ports {
+				# Interface ports retrieved by intf_net are broken
+				if {$hier != "/"} {
+					continue
+				}
+				set mode [get_property MODE $intf_port]
+				if {$mode == "Master"} {
+					lappend m_intf_ports $intf_port
+				}
+				if {$mode == "Slave"} {
+					lappend s_intf_ports $intf_port
+				}
+			}
+			# Find intf_port with upper boundary net name is the actual intf_net
+			set upper_net_intf_port ""
+			foreach intf_port $m_intf_ports {
+				set upper_intf_net [get_bd_intf_nets -quiet\
+					-boundary_type upper -of_objects $intf_port]
+				if {[llength $upper_intf_net] && $upper_intf_net == $intf_net} {
+					set upper_net_intf_port $intf_port
+					break
+				}
+			}
+			# Find intf_port with lower boundary net name is the actual intf_net
+			set lower_net_intf_port ""
+			foreach intf_port $s_intf_ports {
+				set lower_intf_net [get_bd_intf_nets -quiet\
+					-boundary_type lower -of_objects $intf_port]
+				if {[llength $lower_intf_net] && $lower_intf_net == $intf_net} {
+					set lower_net_intf_port $intf_port
+					break
+				}
+			}
+			# # Pin prioritization
+			set target_intf_pin [lindex $intf_pins 0]
+			if {[llength $upper_net_intf_port]} {
+				set target_intf_pin $upper_net_intf_port
+			} elseif {[llength $lower_net_intf_port]} {
+				set target_intf_pin $lower_net_intf_port
+			} elseif {[llength $upper_net_intf_pin]} {
+				set target_intf_pin $upper_net_intf_pin
+			} elseif {[llength $lower_net_intf_pin]} {
+				set target_intf_pin $lower_net_intf_pin
+			}
+			# Rename by path name
+			set path [get_property PATH [get_bd_intf_pins -quiet\
+				$target_intf_pin]]
+			set path_str_list [split $path "/"]
+			set net_name [lindex $path_str_list end]
+			if {[llength $path_str_list] >= 2 && \
+			    [llength [lindex $path_str_list end-1]]} {
+				set net_name "[lindex $path_str_list end-1]_${net_name}"
+			}
+			if {$net_name != [get_property NAME [get_bd_intf_nets $intf_net]]} {
+				set_property NAME $net_name [get_bd_intf_nets $intf_net]
+				incr intf_net_rename_count
+			}
+		}
+	}
+
+	::common::send_msg_id {BD 5-148} {INFO} "Renamed $net_rename_count nets and\
+		$intf_net_rename_count interface nets"
+}
+
 proc ::vbs::bd_util::write_filelist_usage {} {
 	puts "write_filelist
 
@@ -2340,6 +2613,7 @@ Available procedures in namespace ::vbs::bd_util:
 	source_filelist : Source TCL files of filelist
 	add_filelist    : Add files of filelist to project
 	validate_intf   : Validate interface properties
+	rename_nets     : Auto-rename nets and interface nets
 	write_filelist  : Write filelist for previously generated files"
 }
 ::vbs::bd_util::show_procs
