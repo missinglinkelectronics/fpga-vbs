@@ -487,6 +487,14 @@ time vivado \
 RETVAL=$?
 
 echo "The build directory was $PRJ_DIR"
+echo "Vivado Project:"
+find "$PRJ_DIR" -maxdepth 1 -type f \
+    \( -name "*.xpr" \) \
+    -exec realpath {} \; | sed 's/^/\t/'
+echo "FPGA Binaries:"
+find "$PRJ_DIR" -maxdepth 1 -type f \
+    \( -name "*.ltx" -o -name "*.pdi" -o -name "*.bit" -o -name "*.xsa" \) \
+    -exec realpath {} \; | sed 's/^/\t/'
 popd
 
 exit $RETVAL
