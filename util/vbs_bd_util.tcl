@@ -645,7 +645,7 @@ proc ::vbs::bd_util::get_address_assignments {} {
 		set offset [get_property OFFSET $addr_seg]
 		set range [get_property RANGE $addr_seg]
 		if {[llength $offset] && [llength $range]} {
-			set space [get_bd_addr_spaces -of_objects $addr_seg]
+			set space [get_bd_addr_spaces -quiet -of_objects $addr_seg]
 			set seg [get_bd_addr_segs -of_objects $addr_seg]
 			dict set addr_dict $addr_seg "OFFSET $offset RANGE $range\
 				SPACE [regsub {^/} $space ""]\
@@ -759,7 +759,7 @@ proc ::vbs::bd_util::write_tcl {fname hier_dict csv_addr} {
 	}
 
 	if {$root} {
-		if {[llength [get_bd_addr_spaces]]} {
+		if {[llength [get_bd_addr_spaces -quiet]]} {
 			puts $fp "\n\t\# Create address segments"
 			if {$csv_addr} {
 				puts $fp "\tassign_bd_address -import_from_file\
@@ -907,7 +907,7 @@ proc ::vbs::bd_util::write_dict {fname hier_dict} {
 
 # Write address assignments
 proc ::vbs::bd_util::write_csv {fname} {
-	if {[llength [get_bd_addr_spaces]]} {
+	if {[llength [get_bd_addr_spaces -quiet]]} {
 		assign_bd_address -force -export_to_file "$fname"
 	}
 }
