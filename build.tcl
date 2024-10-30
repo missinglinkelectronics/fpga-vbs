@@ -333,9 +333,33 @@ if {$start_step == $build_steps(prj)} {
     if {[info exists ipxact_dir]} {
         puts "Parsing IP-XACT repositories from configuration file ..."
         set ipxact_dirs [list]
-        foreach value $ipxact_dir {
-            lappend ipxact_dirs "[file normalize "${flavor_dir}/${value}"]"
+
+        # Procedure to resolve a shell variable and return the full path
+        proc resolve_path {path flavor_dir} {
+            # Resolve shell variables using shell execution
+            set shell_command "echo $path"
+
+            # Use exec to get the resolved path
+            set resolved_path [exec /bin/sh -c $shell_command]
+
+            # Check if the resolved path is absolute (for UNIX and Windows)
+            if {[string index $resolved_path 0] eq "/" || \
+                [string match "?:*\\*" $resolved_path]} {
+                # It's an absolute path
+                return $resolved_path
+            } else {
+                # Normalize it relative to the flavor directory
+                return [file normalize [file join $flavor_dir $resolved_path]]
+            }
         }
+
+        # Use the resolve_path function for each IP-XACT directory
+        foreach value $ipxact_dir {
+            set resolved_path [resolve_path "$value" $flavor_dir]
+            lappend ipxact_dirs $resolved_path
+            puts $resolved_path
+        }
+
         if {[package vcompare [version -short] 2014.3] >= 0} {
             set_property ip_repo_paths $ipxact_dirs $cur_prj
         } else {
