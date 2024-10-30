@@ -173,7 +173,10 @@ proc ::vbs::bd_util::get_root_dict {hier_dict} {
 	set bd_ports [list]
 
 	# Insert port nets
-	set nets_dict [dict get $hier_dict NETS]
+	set nets_dict [list]
+	if {[dict exists $hier_dict NETS]} {
+		set nets_dict [dict get $hier_dict NETS]
+	}
 	dict for {net pins} $nets_dict {
 		set ports [get_bd_ports -quiet -of_objects $net]
 		if {[llength $ports]} {
@@ -183,7 +186,10 @@ proc ::vbs::bd_util::get_root_dict {hier_dict} {
 	}
 
 	# Insert interface port nets
-	set intf_nets_dict [dict get $hier_dict INTF_NETS]
+	set intf_nets_dict [list]
+	if {[dict exists $hier_dict INTF_NETS]} {
+		set intf_nets_dict [dict get $hier_dict INTF_NETS]
+	}
 	dict for {intf_net pins} $intf_nets_dict {
 		dict set hier_dict INTF_NETS $intf_net INTF_PORTS \
 			[get_bd_intf_ports -quiet -of_objects $intf_net]
