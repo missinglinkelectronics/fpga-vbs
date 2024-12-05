@@ -830,7 +830,16 @@ proc ::vbs::bd_util::write_dict {fname hier_dict} {
 				puts $fp "dict set ::vbs::${name}::cfg_dict $NAME CONFIG\
 					\[list \\"
 				dict for {key value} $CONFIG {
-					puts $fp "\t$key \{$value\} \\"
+					# Expand one subkey level of the dictionary
+					if {[string first "\{" $value] < 1} {
+						puts $fp "\t$key \{$value\} \\"
+					} else {
+						puts $fp "\t$key \{ \\"
+						dict for {subkey subvalue} $value {
+							puts $fp "\t\t$subkey \{$subvalue\} \\"
+						}
+						puts $fp "\t\} \\"
+					}
 				}
 				puts $fp "\]"
 			}
