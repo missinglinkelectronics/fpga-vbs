@@ -180,8 +180,10 @@ proc ::vbs::bd_util::get_root_dict {hier_dict} {
 	dict for {net pins} $nets_dict {
 		set ports [get_bd_ports -quiet -of_objects $net]
 		if {[llength $ports]} {
-			lappend bd_ports $ports
-			dict set hier_dict NETS $net PORTS $ports
+			foreach port $ports {
+				lappend bd_ports $port
+				dict set hier_dict NETS $net PORTS $port
+			}
 		}
 	}
 
