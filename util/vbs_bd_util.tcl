@@ -182,8 +182,8 @@ proc ::vbs::bd_util::get_root_dict {hier_dict} {
 		if {[llength $ports]} {
 			foreach port $ports {
 				lappend bd_ports $port
-				dict set hier_dict NETS $net PORTS $port
 			}
+			dict set hier_dict NETS $net PORTS $ports
 		}
 	}
 
