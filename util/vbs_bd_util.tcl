@@ -65,7 +65,12 @@ proc ::vbs::bd_util::get_property_dict {obj} {
 	foreach config $config_list {
 		# Only store user defined properties
 		if {[get_property $config.VALUE_SRC $obj] == "USER"} {
-			dict set cfg_dict $config [get_property $config $obj]
+			set read_only_flag [lindex \
+					[report_property -return_string -all $obj $config] 6]
+			# Ignore read-only properties
+			if {$read_only_flag == "false"} {
+				dict set cfg_dict $config [get_property $config $obj]
+			}
 		}
 	}
 	dict set property_dict CONFIG $cfg_dict
