@@ -56,9 +56,9 @@
 # Configuration Dictionary File Version
 CDF_VER="1.4.1"
 
-# Paths relative to build.sh
 SCRIPT_DIR="$(dirname "$(readlink -e "$0")")"
-BASE_DIR="$(dirname "${SCRIPT_DIR}")"
+# Paths relative to current working directory
+BASE_DIR="$(pwd)"
 
 # Use Base Dir argument if set
 BASE_DIR_ARG=$(echo $@ | sed -n -e 's/^.*-b //p' | cut -d' ' -f 1)
