@@ -181,6 +181,12 @@ while getopts "$OPTSTRING" opt; do
         # Handles both a directory path or a direct file path.
         VIVADO_XPR_PATH="${OPTARG}"
         VIVADO_XPR_TMP="$(pwd)"
+        START_STEP_SET=0
+
+        # Checks if the start step (-s) was provided in the original arguments.
+        if echo "$ORIG_ARGS" | grep " -s " >/dev/null; then
+            START_STEP_SET=1
+        fi
 
         if [ -d "${VIVADO_XPR_PATH}" ]; then
             # Argument is a directory. Find the .xpr file inside it.
@@ -225,32 +231,37 @@ while getopts "$OPTSTRING" opt; do
 
         XPR_NAME="$(basename "${VIVADO_XPR}")"
 
+        # Injects default start step 'synth' if -s was not provided.
+        if [ "$START_STEP_SET" -eq 0 ]; then
+            set -- "$@" "-s" "synth"
+        fi
+
         # Infers flavor and configuration name from the existing project (.xpr) filename.
         XPR_BASE_NAME="${XPR_NAME%.xpr}"
         NUM_ARGS=$(echo "${XPR_BASE_NAME}" | tr '_' ' ' | wc -w)
 
         # Handles no-flavor mode (<prj>_<config>.xpr).
         if [ "$NUM_ARGS" -eq 2 ]; then
-            if ! echo " $* " | grep ' -c ' >/dev/null; then
+            if ! echo "$ORIG_ARGS" | grep ' -c ' >/dev/null; then
                 CFG=$(echo "${XPR_BASE_NAME}" | cut -d '_' -f 2)
                 printf "Retrieving configuration-dictionary name '%s.dict'\n" "${CFG}"
                 set -- "$@" "-c" "${CFG}"
             fi
         # Handles flavor mode (<prj>_<flavor>_<config>.xpr).
         elif [ "$NUM_ARGS" -eq 3 ]; then
-            if ! echo " $* " | grep ' -f ' >/dev/null; then
+            if ! echo "$ORIG_ARGS" | grep ' -f ' >/dev/null; then
                 FLV=$(echo "${XPR_BASE_NAME}" | cut -d '_' -f 2)
                 printf "Retrieving flavor name '%s'\n" "${FLV}"
                 set -- "$@" "-f" "${FLV}"
             fi
-            if ! echo " $* " | grep ' -c ' >/dev/null; then
+            if ! echo "$ORIG_ARGS" | grep ' -c ' >/dev/null; then
                 CFG=$(echo "${XPR_BASE_NAME}" | cut -d '_' -f 3)
                 printf "Retrieving configuration-dictionary name '%s.dict'\n" "${CFG}"
                 set -- "$@" "-c" "${CFG}"
             fi
         else
             # Requires explicit configuration name if format is non-standard.
-            if ! echo " $* " | grep ' -c ' >/dev/null; then
+            if ! echo "$ORIG_ARGS" | grep ' -c ' >/dev/null; then
                 printf "Please specify configuration-dictionary name\n"
                 printf "Exiting...\n"; exit 1
             fi
