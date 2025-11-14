@@ -405,68 +405,62 @@ if [ -z "${CONFIG_DICT_NAME}" ]; then
 fi
 
 # Function to recursively merge dictionary files using /include/ statements.
-# Returns a space-separated string of key-value tupels.
+# Prints key-value tupels, one per line, to stdout.
 merge_dicts() {
     DICT="$DICT_DIR/$1"
     if [ ! -f "$DICT" ]; then
-        printf ""
+        # Print nothing on failure (handled by caller)
         return 1
     fi
-    MERGE_DICT=""
+
+    # Outputs the dictionary content (one key-value pair per line), excluding comments and include lines.
+    cat "$DICT" | sed -e '/^[ \t]*#/d' | grep -v '/include/'
+
     # Extracts include paths from the dictionary file, ignoring comments.
     INCL_FILES=$(grep "/include/" "$DICT" | sed -e '/^[ \t]*#/d' | \
         cut -d ' ' -f 2 | tr -d '"')
 
-    # Outputs the dictionary content, excluding comments and include lines.
-    cat "$DICT" | sed -e '/^[ \t]*#/d' | grep -v '/include/'
-
-    # Recursively merges included files.
+    # Recursively merges included files by piping output.
     if [ -z "${INCL_FILES}" ]; then
         return 0
     fi
     for INCL_FILE in $INCL_FILES; do
-        MERGE_DICT=$(merge_dicts "$INCL_FILE")
-        if [ $? -ne 0 ]; then
-            printf ""
-            return 1
+        if ! merge_dicts "$INCL_FILE"; then
+            return 1 # Propagate failure
         fi
-        printf " %s" "$MERGE_DICT" # Appends merged dictionaries as a space-separated string.
     done
     return 0
 }
 
 # Executes the dictionary merge process.
+# MDICT captures the full dictionary content, with one key-value pair per line.
 MDICT=$(merge_dicts "$CONFIG_DICT_NAME")
 if [ $? -gt 0 ]; then
     printf "ERROR: Parsing dictionary include files failed\n"; exit 1
 fi
 
-# Function to search for a key's value within the merged dictionary string.
-# Dict data is passed as word-split arguments.
+# Function to search for a key's value within the merged dictionary stream.
+# Reads key-value tupels line-by-line from stdin.
 get_value4key() {
     KEY="$1"
-    shift
-    # DICT contains the key-value tupels passed as arguments.
+    # DICT content is read from standard input.
     VALUE=""
 
-    # Iterates over key-value pairs.
-    while [ $# -ge 2 ]; do
-        CURRENT_KEY="$1"
-        CURRENT_VALUE="$2"
+    # Iterates over key-value pairs read from stdin.
+    while read CURRENT_KEY CURRENT_VALUE; do
         # The last matching key-value pair determines the final value (least precedence).
         if [ "$CURRENT_KEY" = "$KEY" ]; then
             # Removes surrounding quotes from the value.
             VALUE=$(echo "$CURRENT_VALUE" | tr -d '"')
         fi
-        shift 2 # Moves to the next key-value pair.
     done
     echo "$VALUE"
     return 0
 }
 
 # Parses the configuration dictionary version and checks for compatibility.
-# $MDICT is passed unquoted for word splitting.
-DICT_CDF_VER=$(get_value4key "CDF_VER" $MDICT)
+# The MDICT string is explicitly piped into get_value4key.
+DICT_CDF_VER=$(printf "%s\n" "$MDICT" | get_value4key "CDF_VER")
 if [ -n "${DICT_CDF_VER}" ]; then
     DICT_CDF_VER_MAJOR=$(echo "$DICT_CDF_VER" | cut -d '.' -f 1)
     DICT_CDF_VER_MINOR=$(echo "$DICT_CDF_VER" | cut -d '.' -f 2)
@@ -496,7 +490,7 @@ fi
 # Checks if the project name was set by the -p option.
 if [ -z "${PRJ_NAME}" ]; then
     # Checks for PRJ_NAME in configuration dictionary.
-    PRJ_NAME=$(get_value4key "PRJ_NAME" $MDICT)
+    PRJ_NAME=$(printf "%s\n" "$MDICT" | get_value4key "PRJ_NAME")
     if [ -z "${PRJ_NAME}" ]; then
         # Checks for PRJ_NAME being defined in project configuration file.
         PRJ_CFG="${BASE_DIR}/project.cfg"
