@@ -52,27 +52,28 @@
 ##
 ################################################################################
 
-################################################################################
-# Configuration Dictionary File Version
+# Defines the version expected for configuration dictionary files.
 CDF_VER="1.4.1"
 
+# Determines the absolute path of the script's directory.
 SCRIPT_DIR="$(dirname "$(readlink -e "$0")")"
-# Paths relative to current working directory
+# Sets the base directory relative to the current working directory.
 BASE_DIR="$(pwd)"
 
-# Use Base Dir argument if set
+# Manually scans input arguments for the optional -b (base directory) setting.
 BASE_DIR_ARG=$(echo $@ | sed -n -e 's/^.*-b //p' | cut -d' ' -f 1)
+# Sets the canonical absolute path for BASE_DIR if the argument is provided.
 if [ ! -z "${BASE_DIR_ARG}" ]; then
     BASE_DIR=$(readlink -m "$BASE_DIR_ARG")
 fi
 
-# TCL arguments to be passed to Vivado
+# Assembles initial TCL arguments to be passed to Vivado.
 TCL_ARGS="script_dir=${SCRIPT_DIR} base_dir=${BASE_DIR} ${TCL_ARGS}"
 
-# Valid build steps
+# List of valid build steps.
 VALID_STEPS="prj exec_tcl sim_prep sim package synth_ooc synth impl bit"
 
-# Retrieve flavors from directories
+# Retrieves the list of available project flavors by scanning the base directory.
 pushd "${BASE_DIR}" >/dev/null
 FLAVOR_LIST="$(find . -maxdepth 2 -name "*.dict" -type f 2>/dev/null |
         cut -s -d / -f 2)"
@@ -83,7 +84,7 @@ if [ -z "${FLAVOR_LIST:+x}" ]; then
     echo "Exiting..."; exit 1
 fi
 
-# No-Flavor mode
+# If only a root-level .dict file exists, runs in No-Flavor mode.
 if echo "${FLAVOR_LIST}" | grep -q .dict; then
     FLAVOR_LIST=""
 fi
@@ -119,9 +120,11 @@ OPTIND=1
 while getopts "$OPTSTRING" opt; do
     case "$opt" in
     d)
+        # Resolves the build directory to an absolute path.
         BUILD_DIR="$(readlink -m "${OPTARG}")"
         ;;
     x)
+        # Resolves the existing project path to an absolute path.
         VIVADO_XPR="$(readlink -m "${OPTARG}")"
         if [ -f "${VIVADO_XPR}" ]; then
             if ! echo "${VIVADO_XPR}" | grep -q '\.xpr$'; then
@@ -129,28 +132,30 @@ while getopts "$OPTSTRING" opt; do
                 echo "Exiting..."; exit 1
             fi
         else
+            # Attempts to find the project file within the provided directory.
             XPR_NAMES="$(ls -1 ${VIVADO_XPR}/*.xpr 2>/dev/null)"
             if [ $? -ne 0 ]; then
                 echo "Did not find Vivado Project in folder '${VIVADO_XPR}/'"
                 echo "Exiting..."; exit 1
             else
+                # Selects the first XPR file found.
                 VIVADO_XPR="`echo ${XPR_NAMES} | tr '\n' ' ' | cut -d " " -f 1`"
                 echo "Retrieving Vivado Project '${VIVADO_XPR}'..."
             fi
         fi
         XPR_NAME="$(basename ${VIVADO_XPR})"
 
-        # Retrieve flavor and config name from XPR. XPR name must not have a
-        # custom format!
+        # Infers flavor and configuration name from the existing project (.xpr) filename.
         NUM_ARGS=`echo "${XPR_NAME%.xpr}" | sed -e 's#_# #g' | wc -w`
-        # No-flavor mode format <prj>_<config>.xpr
+
+        # Handles no-flavor mode (<prj>_<config>.xpr).
         if [ $NUM_ARGS -eq 2 ]; then
             if ! echo " $* " | grep -q ' -c '; then
                 CFG=`echo ${XPR_NAME%.xpr} | cut -d _ -f 2`
                 echo "Retrieving configuration-dictionary name '${CFG}.dict'"
                 set -- "$@" "-c" "${CFG}"
             fi
-        # Flavor mode format <prj>_<flavor>_<config>.xpr
+        # Handles flavor mode (<prj>_<flavor>_<config>.xpr).
         elif [ $NUM_ARGS -eq 3 ]; then
             if ! echo " $* " | grep -q ' -f '; then
                 FLV=`echo ${XPR_NAME%.xpr} | cut -d _ -f 2`
@@ -163,8 +168,7 @@ while getopts "$OPTSTRING" opt; do
                 set -- "$@" "-c" "${CFG}"
             fi
         else
-            # Check for configuration-dictionary name only. Flavor name may be
-            # retrieved by current folder name
+            # Requires explicit configuration name if format is non-standard.
             if ! echo " $* " | grep -q ' -c '; then
                 echo "Please specify configuration-dictionary name"
                 echo "Exiting..."; exit 1
@@ -173,7 +177,7 @@ while getopts "$OPTSTRING" opt; do
         ;;
     f)
         FLAVOR="${OPTARG}"
-        # Check for flavor being defined in flavor list
+        # Validates that the flavor name exists in the available flavor list.
         if ! echo " ${FLAVOR_LIST} " | grep -q "${FLAVOR}"; then
             echo "Flavor '${FLAVOR}' not found"
             echo -e "Known flavors:\n${FLAVOR_LIST}"
@@ -183,7 +187,7 @@ while getopts "$OPTSTRING" opt; do
         ;;
     p)
         PRJ_CFG="${OPTARG}"
-        # Argument may be a project configuration file or project name string
+        # Sets PRJ_NAME either from the project configuration file or directly from the argument string.
         if [ -f "${PRJ_CFG}" ]; then
             PRJ_NAME=`cat ${PRJ_CFG} | grep PRJ_NAME | cut -s -d \" -f 2`
         else
@@ -191,6 +195,7 @@ while getopts "$OPTSTRING" opt; do
         fi
         ;;
     t)
+        # Resolves the TCL file path to an absolute path.
         TCL_FILE="$(readlink -m "${OPTARG}")"
         if [ -f "${TCL_FILE}" ]; then
             TCL_ARGS="tcl_file=$TCL_FILE ${TCL_ARGS}"
@@ -210,7 +215,7 @@ while getopts "$OPTSTRING" opt; do
     esac
 done
 
-# Retrieve flavor name from current directory
+# Attempts to retrieve the flavor name from the current directory name if not specified by -f.
 if [ -z "${FLAVOR:+x}" ] && [ ! -z "${FLAVOR_LIST:+x}" ]; then
     WORK_DIR=$(basename $(pwd))
 
@@ -225,7 +230,7 @@ if [ -z "${FLAVOR:+x}" ] && [ ! -z "${FLAVOR_LIST:+x}" ]; then
     fi
 fi
 
-# Default build configuration file
+# Sets the directory where configuration dictionaries are searched.
 DICT_DIR="${BASE_DIR}"
 if [ ! -z "${FLAVOR:+x}" ]; then
     DICT_DIR="${BASE_DIR}/${FLAVOR}"
@@ -236,6 +241,7 @@ while getopts "$OPTSTRING" opt; do
     case "$opt" in
     o)
         BUILD_NAME="${OPTARG}"
+        # Checks if the specified build directory and name already exist.
         if [ ! -z "${BUILD_DIR:+x}" ] && [ -d "${BUILD_DIR}/${BUILD_NAME}" ]; then
             echo "Build '${BUILD_NAME}' already exists in ${BUILD_DIR}"
             echo "Exiting..."; exit 1
@@ -246,6 +252,7 @@ while getopts "$OPTSTRING" opt; do
         if [ -z "${VIVADO_XPR:+x}" ]; then
             echo "No Vivado project specified for option '-s'"
             echo "Exiting..."; exit 1
+        # Validates that the specified start step is recognized.
         elif ! echo " ${VALID_STEPS} " | grep -q "\s${STEP}\s"; then
             echo "Invalid step '$STEP'"
             echo "Valid build steps: ${VALID_STEPS}"
@@ -255,6 +262,7 @@ while getopts "$OPTSTRING" opt; do
         ;;
     e)
         STEP="${OPTARG}"
+        # Validates that the specified end step is recognized.
         if ! echo " ${VALID_STEPS} " | grep -q "\s${STEP}\s"; then
             echo "Invalid step '$STEP'"
             echo "Valid build steps: ${VALID_STEPS}"
@@ -282,24 +290,25 @@ while getopts "$OPTSTRING" opt; do
     esac
 done
 
+# Auto-discovers configuration dictionary if the -c option was not used.
 if [ -z ${CONFIG_DICT_NAME} ]; then
     CONFIG_DICT_NAMES="$(ls -1 ${DICT_DIR}/*.dict 2>/dev/null)"
     if [ $? -ne 0 ]; then
         echo "Did not find configuration-dictionary in folder ${DICT_DIR}/"
         echo "Exiting..."; exit 1
     else
-        # Pick config.dict if existing
+        # Prioritizes "config.dict" if multiple dictionaries are found.
         if `echo " ${CONFIG_DICT_NAMES} " | grep -q "\sconfig\.dict\s"`; then
             CONFIG_DICT_NAME="config.dict"
         elif [ `echo "${CONFIG_DICT_NAMES}" | wc -w` -gt 1 ]; then
-            # Do not pick random dictionary
+            # Requires explicit selection if multiple non-default dictionaries exist.
             echo "Multiple configuration-dictionary files found. Use the -c option to pick one:"
             for I in ${CONFIG_DICT_NAMES}; do
                 echo -e "\t`basename ${I}`";
             done
             echo "Exiting..."; exit 1
         else
-            # Pick dictionary with non default name
+            # Selects the single dictionary file found.
             CONFIG_DICT_NAME=`echo ${CONFIG_DICT_NAMES} | tr '\n' ' ' | \
                     cut -d " " -f 1`
             CONFIG_DICT_NAME=$(basename ${CONFIG_DICT_NAME})
@@ -307,7 +316,7 @@ if [ -z ${CONFIG_DICT_NAME} ]; then
     fi
 fi
 
-# Merge all dictionaries included by /include/ statement
+# Function to recursively merge dictionary files using /include/ statements.
 merge_dicts() {
     DICT=$DICT_DIR/
     DICT+=$1
@@ -316,10 +325,14 @@ merge_dicts() {
         return 1
     fi
     MERGE_DICT=""
+    # Extracts include paths from the dictionary file, ignoring comments.
     INCL_FILES=`grep "/include/" $DICT | sed -e '/^[ \t]*#/d' | \
         cut -d ' ' -f 2 | sed 's|"||g'`
     echo ""
+    # Outputs the dictionary content, excluding comments.
     cat $DICT | sed -e '/^[ \t]*#/d'
+
+    # Recursively merges included files.
     if [ -z "${INCL_FILES}" ]; then
         return 0
     fi
@@ -330,18 +343,21 @@ merge_dicts() {
     echo $MERGE_DICT
     return 0
 }
+# Executes the dictionary merge process.
 MDICT=`merge_dicts "$CONFIG_DICT_NAME"`
 [ $? -gt 0 ] && echo "ERROR: Parsing dictionary include files failed" && exit 1
 MDICT=( $MDICT )
 
-# Get value for key in dictionary. Least value for duplicate keys
+# Function to search for a key's value within the merged dictionary.
 get_value4key() {
     KEY=$1
     shift
     DICT=("$@")
     VALUE=""
+    # Iterates over key-value pairs.
     for i in "${!DICT[@]}"; do
         if [ "${DICT[$i]}" == "${KEY}" ]; then
+            # Retrieves the value.
             VALUE=`echo ${DICT[$i + 1]} | sed 's|"||g'`
         fi
     done
@@ -349,7 +365,7 @@ get_value4key() {
     return 0
 }
 
-# Parse version string in configuration dictionary
+# Parses the configuration dictionary version and checks for compatibility.
 DICT_CDF_VER=`get_value4key "CDF_VER" "${MDICT[@]}"`
 if [ ! -z "${DICT_CDF_VER}" ]; then
     DICT_CDF_VER_MAJOR=`echo "$DICT_CDF_VER" | cut -d '.' -f 1`
@@ -360,7 +376,8 @@ else
 fi
 CDF_VER_MAJOR=`echo "$CDF_VER" | cut -d '.' -f 1`
 CDF_VER_MINOR=`echo "$CDF_VER" | cut -d '.' -f 2`
-# Compare CDF versions
+
+# Compares major and minor versions.
 if [ $DICT_CDF_VER_MAJOR -lt $CDF_VER_MAJOR ]; then
     echo "ERROR: The configuration dictionary file '${CONFIG_DICT_NAME}' \
 is incompatible with the current version of the Vivado Build Scripts"
@@ -378,28 +395,29 @@ fi
 #   3. PRJ_NAME defined in project configuration file
 #   4. "prj0" fallback
 
-# Check if build.sh "-p" option already set the project name
+# Checks if the project name was set by the -p option.
 if [ -z "${PRJ_NAME:+x}" ]; then
-    # Check for PRJ_NAME in configuration dictionary
+    # Checks for PRJ_NAME in configuration dictionary.
     PRJ_NAME=`get_value4key "PRJ_NAME" "${MDICT[@]}"`
     if [ -z "${PRJ_NAME}" ]; then
-        # Check for PRJ_NAME being defined in project configuration file
+        # Checks for PRJ_NAME being defined in project configuration file.
         PRJ_CFG="${BASE_DIR}/project.cfg"
         if [ -f "${PRJ_CFG}" ]; then
             PRJ_NAME=`cat ${PRJ_CFG} | grep PRJ_NAME | cut -s -d \" -f 2`
         fi
         if [ -z "${PRJ_NAME}" ]; then
-            # Use default project name
+            # Uses default project name.
             PRJ_NAME="prj0"
         fi
     fi
 fi
-# Purge project name
+# Sanitizes the project name by replacing spaces/underscores with hyphens.
 PRJ_NAME=`echo "$PRJ_NAME" | sed -e 's/[ _]\+/-/g'`
 
 shift $((OPTIND-1))
 [ "$1" = "--" ] && shift
 
+# Constructs the XPR name if it wasn't specified by -x.
 if [ -z "${XPR_NAME:+x}" ]; then
     XPR_NAME="${PRJ_NAME}"
 
@@ -414,33 +432,40 @@ TCL_ARGS="xpr_name=${XPR_NAME%.xpr} ${TCL_ARGS}"
 TCL_ARGS="config_dict_name=${CONFIG_DICT_NAME} ${TCL_ARGS}"
 
 ################################################################################
-## Get GIT version control information
+## Retrieves GIT version information
+
 get_vcsver()
 {
-	if head=`git rev-parse --verify --short HEAD 2>/dev/null`; then
-		printf 'g%s' $head
-		[ -w . ] && git update-index --refresh --unmerged > /dev/null
-		if git diff-index --name-only HEAD | read dummy; then
-			printf '%s' "-dirty"
-		fi
-		echo ""
-	fi
+    # Checks if the script is running inside a Git repository.
+    if head=`git rev-parse --verify --short HEAD 2>/dev/null`; then
+        printf 'g%s' $head
+        # Checks for uncommitted changes.
+        [ -w . ] && git update-index --refresh --unmerged > /dev/null
+        if git diff-index --name-only HEAD | read dummy; then
+            printf '%s' "-dirty"
+        fi
+        echo ""
+    fi
 }
 
 ################################################################################
-## Create Vivado project directory and exec Vivado with build.tcl and arguments
+## Creates the Vivado project directory and executes Vivado with build.tcl
+
+# Retrieves the Git version information.
 pushd "${BASE_DIR}" >/dev/null
 VCSVER=`get_vcsver`
 popd >/dev/null
+# Generates a timestamp for the build directory.
 BSTAMP=`date +%Y%m%d-%H%M%S`
 
-# Set directories
+# Sets the container directory for the build output.
 if [ ! -z "${BUILD_DIR:+x}" ]; then
     PRJ_DIR_CONTAINER="${BUILD_DIR}"
 else
     PRJ_DIR_CONTAINER="${BASE_DIR}/build"
 fi
 
+# Constructs the final project directory path.
 if [ ! -z "${BUILD_NAME:+x}" ]; then
     PRJ_DIR="${PRJ_DIR_CONTAINER}/${BUILD_NAME}"
 else
@@ -450,12 +475,13 @@ else
 
     PRJ_NAME="${PRJ_NAME}_${CONFIG_DICT_NAME%.dict}"
 
+    # Appends timestamp and version control information.
     PRJ_DIR="${PRJ_DIR_CONTAINER}/${PRJ_NAME}_${BSTAMP}${VCSVER:+_$VCSVER}"
 fi
 
 if [ ! -z "${VIVADO_XPR:+x}" ]; then
     VIVADO_XPR_DIR="$(dirname ${VIVADO_XPR})"
-    # Copy existing Vivado Project when build name/dir was also specified
+    # Copies an existing Vivado project to the new build folder if specified.
     if [ ! -z "${BUILD_DIR:+x}" ] || [ ! -z "${BUILD_NAME:+x}" ]; then
         echo "Copying Vivado Project ${VIVADO_XPR_DIR} to build folder ${PRJ_DIR}"
         mkdir -p "${PRJ_DIR_CONTAINER}"
@@ -464,10 +490,11 @@ if [ ! -z "${VIVADO_XPR:+x}" ]; then
             echo "Could not copy Vivado Project. Exiting..."; exit 1
         fi
     else
+        # Uses the existing project's directory as the current project directory.
         PRJ_DIR="${VIVADO_XPR_DIR}"
     fi
 else
-    # Create build directory
+    # Creates the new build directory.
     mkdir -p "$PRJ_DIR"
     if [ $? -ne 0 ]; then
         echo "Could not create project directory: $PRJ_DIR"
@@ -475,10 +502,11 @@ else
     fi
 fi
 
-# Run Vivado in build directory
+# Changes directory to the project build folder for execution.
 pushd "$PRJ_DIR"
 echo "Using $PRJ_DIR as the build directory"
 
+# Executes Vivado in batch mode, sourcing the main TCL build script.
 time vivado \
     -mode batch \
     -notrace \
