@@ -550,6 +550,12 @@ get_vcsver()
 ################################################################################
 ## Creates the Vivado project directory and executes Vivado with build.tcl
 
+# Ensures the 'vivado' command is available on the system path.
+if ! command -v vivado >/dev/null 2>&1; then
+    printf "ERROR: 'vivado' command not found. Please ensure the Vivado tools are sourced in your environment.\n"
+    exit 1
+fi
+
 # Retrieves the Git version information.
 CWD_SAVE="$(pwd)"
 if ! cd "${BASE_DIR}"; then
