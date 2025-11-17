@@ -366,6 +366,14 @@ During the build process several hooks are executed. Hook scripts do not run in 
 * *viv_sys_synth_post.tcl*: Check GIT diff to pre synthesis commit
 * *viv_sys_bit_pre.tcl*: Write 7-bit GIT hash and dirty-flag of build into 32-bit FPGA USR_ACCESS register
 
+### Git Build Status Flags
+The status flags are custom numerical codes assigned by the build system to clearly classify the repository's Git state for versioning and reproducibility. It is encoded alongside the Git hash and timestamp in the final naming convention of the generated FPGA artifacts (such as .bit, .xsa, and .zip files) e.g. `...g<hash>-1.pdi`.
+
+Status code and description:
+* 0 (Skip / Clean): Git operations were skipped (Git not found) or a clean state was explicitly used.
+* 1 (Repository Clean): The Git repository was clean (no uncommitted changes) when the commit hash was generated. This denotes a fully reproducible state.
+* 2 (Repository Dirty): Uncommitted changes exist in the local repository. The build system automatically created a temporary Git commit/branch (e.g., build_<flavor>_<timestamp>) containing these changes before starting synthesis. The generated hash reflects this temporary, traceable state.
+* 3 (Git Command Failure): A Git command failed during the process (e.g., failed to create a temporary commit or check diffs). This flags a severe issue.
 
 ## add_flavor.sh examples
 Following two examples show a single- and multi-flavor project created by
