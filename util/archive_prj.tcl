@@ -38,31 +38,60 @@
 ##
 ################################################################################
 
+namespace eval vbs {
+	namespace eval archive {
+		variable run_prop_dict
 
-proc archive_prj {args} {
-    if {[lsearch -regexp $args "help"] >= 0} {
-        puts "\nDescription:"
-        puts "Vivado Build Scripts archive_project helper. Remove all hooks"
-        puts "from the project and run Vivado's 'archive_project' command."
-        puts "Hooks of the source project may be restored afterwards using"
-        puts "the '-restore_hooks' option.\n"
-        puts "Syntax:"
-        puts "archive_prj \[archive_options\] \[-restore_hooks\] <output_file>\n"
-        puts "Options:"
-        puts "Name               Description"
-        puts "------------------------------"
-        puts "\[archive_options\] Vivado's 'archive_project' command options"
-        puts "\[-restore_hooks\]  Restore hooks in the source project afterwards"
-        puts "\[-help\]           Print usage"
-        puts "<output_file>     Output archive file path\n"
-        puts "------------------------------------------------------------\n"
-        return [archive_project -help]
+		namespace export archive_prj
+		namespace export archive_prj_usage
+	}
+}
+
+proc ::vbs::archive::archive_prj_usage {} {
+	puts "archive_prj
+
+Description:
+Vivado Build Scripts archive_project helper. Remove all hooks
+from the project and run Vivado's 'archive_project' command.
+Hooks of the source project may be restored afterwards.
+
+Syntax:
+archive_prj \[archive_options\] \[-restore_hooks\] \[-help\] <arg>
+
+Usage:
+  Name               Description
+  ------------------------------
+  \[archive_options\] Vivado's 'archive_project' command options
+  \[-restore_hooks\]  Restore hooks in the source project afterwards
+  \[-help\]           Print usage
+  <args>              Output archive file path"
+	return
+}
+
+proc ::vbs::archive::archive_prj {args} {
+    if {![llength $args] || [lsearch -regexp $args "help"] >= 0} {
+        return [archive_prj_usage]
     }
+
+    variable run_prop_dict
 
     if {[lsearch -regexp $args "-restore_hooks"] >= 0} {
         set restore_hooks ""
         # Remove '-restore_hooks' from command arguments
         set args [string map {"-restore_hooks " ""} $args]
+    }
+
+    # Restore hooks per run from dict
+    if {[info exists restore_hooks]} {
+        if {[info exists run_prop_dict]} {
+            dict for {run step_hooks} $run_prop_dict {
+                set step_hooks_dict [dict get $run_prop_dict $run]
+                dict for {hook hook_file} $step_hooks_dict {
+                    set_property $hook $hook_file $run
+                }
+            }
+        }
+        return
     }
 
     set run_prop_dict [dict create]
@@ -82,14 +111,4 @@ proc archive_prj {args} {
 
     # Run Vivado's archive project command
     archive_project {*}$args
-
-    # Restore hooks per run from dict
-    if {[info exists restore_hooks]} {
-        dict for {run step_hooks} $run_prop_dict {
-            set step_hooks_dict [dict get $run_prop_dict $run]
-            dict for {hook hook_file} $step_hooks_dict {
-                set_property $hook $hook_file $run
-            }
-        }
-    }
 }
