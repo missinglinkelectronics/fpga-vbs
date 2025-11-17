@@ -543,7 +543,11 @@ if {$start_step == $build_steps(prj)} {
         } else {
             foreach tcl_file $filelist_tcl {
                 if {[file exists "${tcl_file}"]} {
-                    source "${tcl_file}"
+                    set result [catch {source "${tcl_file}"} err_msg]
+                    if {$result != 0} {
+                        puts "ERROR: Script execution failed in ${tcl_file}: $err_msg"
+                        exit 2
+                    }
                 } else {
                     puts "WARNING: TCL file does not exist: ${tcl_file}"
                 }
@@ -876,7 +880,11 @@ save_dict "${bvars_file}" $bvars_dict
 foreach tcl_file $tcl_files {
     if {[file exists "${tcl_file}"]} {
         puts "INFO: Execute TCL script ${tcl_file}"
-        source "${tcl_file}"
+        set result [catch {source "${tcl_file}"} err_msg]
+        if {$result != 0} {
+            puts "ERROR: Script execution failed in ${tcl_file}: $err_msg"
+            exit 2
+        }
     } else {
         puts "ERROR: TCL file does not exist: '${tcl_file}'"
         exit 2
