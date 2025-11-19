@@ -137,6 +137,7 @@ Set miscellaneous/optional parameters using the OPT_PARAMS key.
 * xpr_name: Vivado project name
 * ipxact_dir: IP-XACT repositories relative to flavor
 * use_ip_cache_dir: IP Cache directory relative to flavor. The default folder (empty string) is the build container directory e.g. *build/ip_cache*
+* req_vivado_patch: List of required Vivado patches e.g. "AR1234 AR5678"
 
 Example:
 
@@ -150,6 +151,7 @@ Example:
             "../ipxact_repo2"
         }
         use_ip_cache_dir ""
+        req_vivado_patch "AR1234 AR5678"
     }
 ***
 Set simulation specific parameters using the SIM_PARAMS key.

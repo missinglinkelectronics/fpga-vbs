@@ -220,24 +220,37 @@ if {[dict exists $config_dict "USER_HOOKS"]} {
 
 # Vivado version verification
 set vivado_version [version -short]
-if {[lsearch -exact $req_vivado_vers $vivado_version] < 0} {
-    puts ""
-    if {$ign_vivado_vers == 1} {
-        puts -nonewline "WARNING: You are using Vivado '$vivado_version' and "
-        puts "not the recommended '[lindex $req_vivado_vers 0]'!"
-        puts -nonewline "The build will continue since you chose to ignore the "
-        puts "incorrect Vivado version"
-    } else {
-        puts -nonewline "ERROR: Please use Vivado '[lindex $req_vivado_vers 0]'"
-        puts " and not '$vivado_version' to build the system!"
-        puts -nonewline "You can prevent this error message by providing the "
-        puts "'-i' argument to build.sh"
-        exit 2
-    }
-} elseif {![string equal "[lindex $req_vivado_vers 0]" "$vivado_version"]} {
-    puts -nonewline "WARNING: You are using Vivado '$vivado_version' and not "
-    puts "the recommended '[lindex $req_vivado_vers 0]'!"
+set req_base_version $req_vivado_vers
+set version_match_err $ign_vivado_vers
+
+# Check if the running version starts with the required base version.
+if {![string match "${req_base_version}*" $vivado_version]} {
+    set version_match_err 2
 }
+
+# Check if all required patches are present.
+set missing_patch [list]
+if {[info exists req_vivado_patch]} {
+    foreach required_patch $req_vivado_patch {
+        if {![string match "*${required_patch}*" $vivado_version]} {
+            set version_match_err 3
+            lappend missing_patch $required_patch
+        }
+    }
+}
+
+if {$version_match_err == 0} {
+    puts "INFO: Using Vivado version $vivado_version"
+} elseif {$version_match_err == 1} {
+    puts "WARNING: Vivado version check disabled by user. Using Vivado '$vivado_version'"
+} elseif {$version_match_err == 2} {
+    puts "ERROR: Vivado version '$vivado_version' does not have the required base version '$req_base_version'."
+    exit 2
+} elseif {$version_match_err == 3} {
+    puts "ERROR: Vivado version '$vivado_version' is missing required patch(es) '$missing_patch'."
+    exit 2
+}
+
 set vivado_year [lindex [split "${vivado_version}" "."] 0]
 
 ################################################################################

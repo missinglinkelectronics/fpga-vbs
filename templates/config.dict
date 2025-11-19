@@ -3,7 +3,7 @@
 ################################################################################
 
 # Configuration Dictionary File Version
-CDF_VER "1.4.1"
+CDF_VER "1.4.2"
 
 ## Project parameters
 # Override project.cfg project name
@@ -74,6 +74,8 @@ TCL_SET {
 #    # Set the IP Cache directory relative to flavor. The default folder (empty
 #    # string) is the build container directory e.g. 'build/ip_cache'
 #    use_ip_cache_dir ""
+#    # List of required Vivado patches
+#    req_vivado_patch "AR1234 AR5678"
 #}
 
 # Simulation specific parameters

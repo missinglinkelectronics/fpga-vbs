@@ -53,7 +53,7 @@
 ################################################################################
 
 # Defines the version expected for configuration dictionary files.
-CDF_VER="1.4.1"
+CDF_VER="1.4.2"
 
 # Script Path Resolution
 # Determines the absolute path of the script's directory.
