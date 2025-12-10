@@ -97,11 +97,18 @@ proc ::vbs::bd_util::get_hier_dict {hier} {
 		dict set hier_dict INTF_PINS $intf_pin [get_property_dict $intf_pin]
 	}
 
-	# IP cells - exclude AXI-NOC and Module reference
-	set filter "TYPE == ip && VLNV !~ xilinx.com:ip:axi*_noc:* && VLNV !~ *:module_ref:*:*"
+	# IP cells - exclude AXI-NOC, Module reference and Inline HDL
+	set filter "TYPE == ip && VLNV !~ xilinx.com:ip:axi*_noc:* && VLNV !~ *:module_ref:*:* && VLNV !~ xilinx.com:inline_hdl:*:*"
 	set ip_cells [get_bd_cells -quiet -filter $filter $hier/*]
 	foreach cell $ip_cells {
 		dict set hier_dict IP_CELLS $cell [get_property_dict $cell]
+	}
+
+	# Inline HDL
+	set filter "TYPE == ip && VLNV =~ xilinx.com:inline_hdl:*:*"
+	set inline_hdl_cells [get_bd_cells -quiet -filter $filter $hier/*]
+	foreach cell $inline_hdl_cells {
+		dict set hier_dict INLINE_HDL $cell [get_property_dict $cell]
 	}
 
 	# Module reference
@@ -340,6 +347,30 @@ proc ::vbs::bd_util::generate_ip_cells_str_list {hier_dict} {
 	return $str_list
 }
 
+# Generate list of strings to create inline-hdl cells
+proc ::vbs::bd_util::generate_inline_hdl_str_list {hier_dict} {
+	set str_list [list]
+	set cells [list]
+	if {[dict exists $hier_dict INLINE_HDL]} {
+		set cells [dict get $hier_dict INLINE_HDL]
+	}
+	dict for {cell properties} $cells {
+		dict with properties {
+			lappend str_list "set $NAME \[create_bd_cell \\"
+			lappend str_list "\t-type inline_hdl \\"
+			lappend str_list "\t-vlnv $VLNV \\"
+			lappend str_list "\t$NAME \\"
+			lappend str_list "\]"
+			if {[llength $CONFIG]} {
+				lappend str_list "set_property -dict \\"
+				lappend str_list "\t\[dict get \$cfg_dict $NAME CONFIG\] \\"
+				lappend str_list "\t\$$NAME"
+			}
+		}
+	}
+	return $str_list
+}
+
 # Generate list of strings to create module reference cells
 proc ::vbs::bd_util::generate_module_ref_str_list {hier_dict} {
 	set str_list [list]
@@ -562,6 +593,9 @@ proc ::vbs::bd_util::generate_check_proc {hier_dict fp} {
 	if {[dict exists $hier_dict AXI_NOC]} {
 		set ips_dict [dict merge $ips_dict [dict get $hier_dict AXI_NOC]]
 	}
+	if {[dict exists $hier_dict INLINE_HDL]} {
+		set ips_dict [dict merge $ips_dict [dict get $hier_dict INLINE_HDL]]
+	}
 	set ips [list]
 	dict for {ip properties} $ips_dict {
 		lappend ips [dict get $properties VLNV]
@@ -740,6 +774,9 @@ proc ::vbs::bd_util::write_tcl {fname hier_dict csv_addr} {
 	foreach str [generate_ip_cells_str_list $hier_dict] {
 		puts $fp "\t$str"
 	}
+	foreach str [generate_inline_hdl_str_list $hier_dict] {
+		puts $fp "\t$str"
+	}
 	foreach str [generate_module_ref_str_list $hier_dict] {
 		puts $fp "\t$str"
 	}
@@ -820,6 +857,9 @@ proc ::vbs::bd_util::write_dict {fname hier_dict} {
 	}
 	if {[dict exists $hier_dict IP_CELLS]} {
 		set item_dict [dict merge $item_dict [dict get $hier_dict IP_CELLS]]
+	}
+	if {[dict exists $hier_dict INLINE_HDL]} {
+		set item_dict [dict merge $item_dict [dict get $hier_dict INLINE_HDL]]
 	}
 	if {[dict exists $hier_dict MODULE_REF]} {
 		set item_dict [dict merge $item_dict [dict get $hier_dict MODULE_REF]]
