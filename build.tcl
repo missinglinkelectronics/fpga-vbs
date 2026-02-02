@@ -220,6 +220,7 @@ if {[dict exists $config_dict "USER_HOOKS"]} {
 
 # Vivado version verification
 set vivado_version [version -short]
+set vivado_version_numeric [lindex [split $vivado_version "_"] 0]
 set req_base_version $req_vivado_vers
 set version_match_err $ign_vivado_vers
 
@@ -373,7 +374,7 @@ if {$start_step == $build_steps(prj)} {
             puts $resolved_path
         }
 
-        if {[package vcompare [version -short] 2014.3] >= 0} {
+        if {[package vcompare $vivado_version_numeric 2014.3] >= 0} {
             set_property ip_repo_paths $ipxact_dirs $cur_prj
         } else {
             set_property ip_repo_paths $ipxact_dirs [current_fileset]
@@ -408,7 +409,7 @@ if {$start_step == $build_steps(prj)} {
     }
     set fileset_sim [get_filesets $fileset_sim_name]
 
-    if {[package vcompare [version -short] 2018.3] >= 0} {
+    if {[package vcompare $vivado_version_numeric 2018.3] >= 0} {
         set fileset_utils [current_fileset "utils_1"]
         set vbs_bd_util_file [file normalize \
             "${scripts_dir}/util/vbs_bd_util.tcl"]
@@ -1087,20 +1088,20 @@ if {$start_step == $build_steps(package) || \
             "${gen_files_arg}" \
             "-set_current" "true"
         ]
-        set vers [version -short]
-        if {[package vcompare [version -short] 2014.3] >= 0} {
+        set vers $req_base_version
+        if {[package vcompare $vivado_version_numeric 2014.3] >= 0} {
             lappend cmd_args "-import_files"
         }
-        if {[package vcompare [version -short] 2014.4] >= 0} {
+        if {[package vcompare $vivado_version_numeric 2014.4] >= 0} {
             lappend cmd_args "-force"
         }
-        if {[package vcompare [version -short] 2015] >= 0} {
+        if {[package vcompare $vivado_version_numeric 2015] >= 0} {
             lappend cmd_args \
                 "-vendor" "${vendor}" \
                 "-library" "${lib}" \
                 "-taxonomy" "${taxonomy}"
         }
-        if {[package vcompare [version -short] 2017.4] >= 0} {
+        if {[package vcompare $vivado_version_numeric 2017.4] >= 0} {
             lappend cmd_args "-module" "${bd_name}"
         }
 
