@@ -658,7 +658,7 @@ find . -maxdepth 1 -type f \
 printf "FPGA Binaries:\n"
 # Find artifacts in the current directory and print their absolute paths.
 find . -maxdepth 1 -type f \
-    \( -name "*.ltx" -o -name "*.pdi" -o -name "*.bit" -o -name "*.xsa" \) \
+    \( -name "*.ltx" -o -name "*.pdi" -o -name "*.bit" -o -name "*.mcs" -o -name "*.xsa" \) \
     -exec sh -c 'printf "\t%s/%s\n" "$(pwd)" "${0#./}"' {} \;
 
 cd "$CWD_SAVE"
