@@ -978,13 +978,9 @@ if {$start_step == $build_steps(package) || \
     set end_step $build_steps(package)
     puts "Package project in IP-XACT format"
     puts "Running Syntax Check ..."
-    set cs [check_syntax -return_string -quiet]
-    if {[regexp -line {^CRITICAL WARNING:.*$} $cs] == 1} {
-        puts $cs
-        puts "ERROR: Syntax Check failed"
+    set cs_result [vbs_check_syntax [current_fileset]]
+    if {$cs_result != ""} {
         exit 2
-    } else {
-        puts "Syntax Check passed"
     }
     if {[dict exists $config_dict "PACKAGE_IP"]} {
         # Parse dictionary section PACKAGE_IP
@@ -1191,13 +1187,9 @@ if {$start_step <= $build_steps(synth_ooc) && \
     $end_step   >= $build_steps(synth_ooc)} {
     puts "Synthesizing all out of context runs ..."
     puts "Running Syntax Check ..."
-    set cs [check_syntax -fileset [current_fileset] -return_string -quiet]
-    if {[regexp -line {^CRITICAL WARNING:.*$} $cs] == 1} {
-        puts $cs
-        puts "ERROR: Syntax Check failed for fileset [current_fileset]"
+    set cs_result [vbs_check_syntax [current_fileset]]
+    if {$cs_result != ""} {
         exit 2
-    } else {
-        puts "Syntax Check for fileset [current_fileset] passed"
     }
     foreach bd [get_files -quiet "*.bd"] {
         if {![get_property IS_GENERATED $bd]} {

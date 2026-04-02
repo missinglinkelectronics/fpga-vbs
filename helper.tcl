@@ -305,3 +305,45 @@ proc dict_val4key {key dictionary} {
         return [dict_val4key $join_keys $sub_dict]
     }
 }
+
+# Post processing of Vivado's check_syntax command for unsupported file types
+proc vbs_check_syntax {fileset_obj} {
+    set skip_types [list "VHDL 2008" "VHDL 2019"]
+    set has_errors 0
+    set error_log ""
+
+    # Run syntax check and capture the output
+    set cs_output [check_syntax -return_string -quiet -fileset $fileset_obj]
+
+    # Split output into lines to process each warning/error
+    set lines [split $cs_output "\n"]
+
+    foreach line $lines {
+        # Look for Critical Warnings which indicate syntax errors
+        if {[regexp {^CRITICAL WARNING: \[.*\] (.*) \[(.*):(\d+)\]} $line match message file_path line_num]} {
+
+            # Use get_files to get the object and check its type
+            set file_obj [get_files -quiet $file_path]
+
+            if {$file_obj != ""} {
+                set ftype [get_property FILE_TYPE $file_obj]
+
+                if {[lsearch -exact $skip_types $ftype] != -1} {
+                    puts "INFO: Ignoring syntax check error for $ftype file: [file tail $file_path]:$line_num"
+                    continue
+                }
+            }
+
+            append error_log "$line\n"
+            set has_errors 1
+        }
+    }
+
+    if {$has_errors} {
+        puts "\nERROR: Syntax check failed for supported file types:"
+        puts $error_log
+        return "CRITICAL WARNING: Syntax errors found"
+    }
+
+    return ""
+}
