@@ -91,6 +91,19 @@ Example:
         filelists/hdl.f hdl
         filelists/ip.f ip
     }
+
+Filesets CONSTR_SET, SRC_SET, SIM_SET also support Property Injection. If a dictionary is used instead of a simple string, the `DIR` key specifies the source directory, while any other key-value pair is passed directly as a Vivado file property.
+
+Example with Properties:
+
+    SRC_SET {
+        filelists/hdl.f hdl
+        filelists/hdl_my_lib_2019.f {
+            DIR        "hdl2"
+            LIBRARY    "my_lib"
+            FILE_TYPE  "VHDL 2019"
+        }
+    }
 ***
 Include/Merge dictionary file using the */include/* key. The file path is relative to the including dictionary file. Behavior:
 * Add keys to hierarchy if not existent

@@ -3,7 +3,7 @@
 ################################################################################
 
 # Configuration Dictionary File Version
-CDF_VER "1.4.2"
+CDF_VER "1.4.3"
 
 ## Project parameters
 # Override project.cfg project name
@@ -23,16 +23,34 @@ MDT_PARAMS {
 # Fileset: 'filelist' and 'directory' tupels both as paths relative to flavor.
 # The filepaths listed in a 'filelist' are expected to be located relative to
 # the 'directory' path
+# Per filelist support for property injection. "DIR"-key is VBS custom and
+# mandatory.
 CONSTR_SET {
     filelists/constr.f constr
+    filelists/constr_synth_only.f {
+        DIR                    "constr"
+        USED_IN_IMPLEMENTATION "0"
+        <FILE_PROP_NAME>        "<FILE_PROPERTY_VALUE>"
 }
 
 SRC_SET {
     filelists/hdl.f hdl
     filelists/ip.f ip
+    filelists/hdl_my_lib_2019.f {
+        DIR               "hdl"
+        LIBRARY           "my_lib"
+        FILE_TYPE         "VHDL 2019"
+        <FILE_PROP_NAME>  "<FILE_PROPERTY_VALUE>"
+    }
 }
 SIM_SET {
     filelists/sim.f sim
+    filelists/sim_my_lib_2019.f {
+        DIR               "sim"
+        LIBRARY           "my_lib"
+        FILE_TYPE         "VHDL 2019"
+        <FILE_PROP_NAME>  "<FILE_PROPERTY_VALUE>"
+    }
 }
 INCL_SET {
     filelists/hdl_include.f hdl

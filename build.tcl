@@ -440,56 +440,58 @@ if {$start_step == $build_steps(prj)} {
         return $filelist
     }
 
+    # Add files from a VBS configuration dictionary to a Vivado fileset with property injection
+    proc add_files_with_properties {set_dict fileset_obj flavor_dir} {
+        dict for {f_list f_val} $set_dict {
+            set files_dir ""
+            set properties [dict create]
+
+            # Check for DIR key vs Directory-String
+            if {[llength $f_val] > 1 && [dict exists $f_val "DIR"]} {
+                set files_dir [dict get $f_val "DIR"]
+                set properties [dict remove $f_val "DIR"]
+            } else {
+                set files_dir $f_val
+            }
+
+            set current_filelist [process_filelist "${flavor_dir}/${f_list}" "${flavor_dir}/${files_dir}"]
+
+            if {[llength $current_filelist] > 0} {
+                add_files -norecurse -fileset $fileset_obj $current_filelist
+
+                if {[dict size $properties] > 0} {
+                    foreach target_file $current_filelist {
+                        dict for {prop_name prop_val} $properties {
+                            set_property $prop_name $prop_val [get_files -all $target_file]
+                        }
+                    }
+                }
+            } else {
+                puts "WARNING: No files found in ${f_list} for directory ${files_dir}"
+            }
+        }
+    }
+
     ## Process filelists
     # Iterate over all filelists and add named files from given directory to
     # fileset. Paths are relative to flavor directory
 
     # Process constraints set
-    set filelist_constr [list]
     if {[dict exists $config_dict "CONSTR_SET"]} {
         puts "Adding files to constraints set ..."
-        set constr_set [dict get $config_dict "CONSTR_SET"]
-        dict for {constr_f files_dir} $constr_set {
-            set filelist_constr [concat $filelist_constr [process_filelist \
-            "${flavor_dir}/${constr_f}" "${flavor_dir}/${files_dir}"]]
-        }
-        if {[llength $filelist_constr] == 0} {
-            puts "WARNING: No files have been added to constraints set"
-        } else {
-            add_files -norecurse -fileset $fileset_constrs $filelist_constr
-        }
+        add_files_with_properties [dict get $config_dict "CONSTR_SET"] $fileset_constrs $flavor_dir
     }
 
     # Process source set
-    set filelist_src [list]
     if {[dict exists $config_dict "SRC_SET"]} {
         puts "Adding files to source set ..."
-        set src_set [dict get $config_dict "SRC_SET"]
-        dict for {src_f files_dir} $src_set {
-            set filelist_src [concat $filelist_src [process_filelist \
-            "${flavor_dir}/${src_f}" "${flavor_dir}/${files_dir}"]]
-        }
-        if {[llength $filelist_src] == 0} {
-            puts "WARNING: No files have been added to source set"
-        } else {
-            add_files -norecurse -fileset $fileset_sources $filelist_src
-        }
+        add_files_with_properties [dict get $config_dict "SRC_SET"] $fileset_sources $flavor_dir
     }
 
     # Process simulation set
-    set filelist_sim [list]
     if {[dict exists $config_dict "SIM_SET"]} {
         puts "Adding files to simulation set ..."
-        set sim_set [dict get $config_dict "SIM_SET"]
-        dict for {sim_f files_dir} $sim_set {
-            set filelist_sim [concat $filelist_sim [process_filelist \
-            "${flavor_dir}/${sim_f}" "${flavor_dir}/${files_dir}"]]
-        }
-        if {[llength $filelist_sim] == 0} {
-            puts "WARNING: No files have been added to simulation set"
-        } else {
-            add_files -norecurse -fileset $fileset_sim $filelist_sim
-        }
+        add_files_with_properties [dict get $config_dict "SIM_SET"] $fileset_sim $flavor_dir
     }
 
     # Process include set
