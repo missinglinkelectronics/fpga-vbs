@@ -66,6 +66,18 @@ set_property BITSTREAM.CONFIG.USR_ACCESS ${bcommit}${misc_nibble} [current_desig
 
 ################################################################################
 
+# Determine Tandem configuration mode.
+# Store the property value in BVARS as the implemented design is already opened.
+set tandem_mode [get_property -quiet HD.TANDEM_BITSTREAMS [current_design]]
+if {$tandem_mode == ""} {
+    set tandem_mode "None"
+}
+dict set bvars TANDEM_MODE $tandem_mode
+
+save_dict $bvars_file $bvars
+
+################################################################################
+
 puts "Hook script 'Pre-Bitstream' done."
 
 exec_usr_hooks "viv_bit_pre" $bvars

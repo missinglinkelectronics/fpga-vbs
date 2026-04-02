@@ -60,10 +60,33 @@ if {[llength [list_property $run_impl STEPS.WRITE_DEVICE_IMAGE.TCL.PRE]]} {
 } else {
     set bin "bit"
 }
-puts "Copying generated .${bin} file to build directory with name ${result_base}.${bin}"
-set bit_gen_path "[file normalize "${run_impl_dir}/${tl_name}.${bin}"]"
-set bit_path     "[file normalize "${project_dir}/${result_base}.${bin}"]"
-file copy -force -- $bit_gen_path $bit_path
+
+# Determine Tandem configuration mode
+set tandem_mode [dict get $bvars "TANDEM_MODE"]
+set copy_list [list]
+
+# Map Tandem modes to expected filename postfixes
+if {$tandem_mode == "Separate"} {
+    lappend copy_list "_tandem1" "_tandem2"
+} elseif {$tandem_mode == "Combined"} {
+    lappend copy_list "_tandem"
+} else {
+    # Default/None case: No postfix
+    lappend copy_list ""
+}
+
+# Iterate through identified files and copy them
+foreach postfix $copy_list {
+    set src_file "${run_impl_dir}/${tl_name}${postfix}.${bin}"
+    set dst_file "${project_dir}/${result_base}${postfix}.${bin}"
+
+    if {[file exists $src_file]} {
+        puts "Copying [file tail $src_file] to build directory as [file tail $dst_file]"
+        file copy -force -- $src_file $dst_file
+    } else {
+        puts "WARNING: Expected file not found: $src_file"
+    }
+}
 
 # .sysdef file
 set sdk_dir         "[file normalize "${project_dir}/${project_name}.sdk"]"
