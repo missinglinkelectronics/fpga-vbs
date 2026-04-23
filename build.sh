@@ -107,7 +107,7 @@ if [ -n "$BASE_DIR_ARG" ]; then
 fi
 
 # Assembles initial TCL arguments to be passed to Vivado.
-TCL_ARGS="script_dir=${SCRIPT_DIR} base_dir=${BASE_DIR} ${TCL_ARGS}"
+TCL_ARGS="script_dir='${SCRIPT_DIR}' base_dir='${BASE_DIR}' ${TCL_ARGS}"
 
 # List of valid build steps.
 VALID_STEPS="prj exec_tcl sim_prep sim package synth_ooc synth impl bit"
@@ -132,7 +132,7 @@ fi
 
 # If only a root-level .dict file exists, runs in No-Flavor mode.
 # This check verifies if any item contains ".dict", indicating it's a filename in the root, not a flavor directory.
-if echo "${FLAVOR_LIST}" | grep '\.dict' >/dev/null; then
+if printf "%s" "${FLAVOR_LIST}" | grep -q '\.dict'; then
     FLAVOR_LIST=""
 fi
 
@@ -184,7 +184,7 @@ while getopts "$OPTSTRING" opt; do
         START_STEP_SET=0
 
         # Checks if the start step (-s) was provided in the original arguments.
-        if echo "$ORIG_ARGS" | grep " -s " >/dev/null; then
+        if printf "%s" "$ORIG_ARGS" | grep -q " -s "; then
             START_STEP_SET=1
         fi
 
@@ -203,7 +203,7 @@ while getopts "$OPTSTRING" opt; do
                 printf "Did not find Vivado Project in folder '%s/'\n" "${VIVADO_XPR_DIR_ABS}"
                 printf "Exiting...\n"; exit 1
             fi
-            VIVADO_XPR=$(echo "${XPR_NAMES}" | head -n 1)
+            VIVADO_XPR="$(printf "%s" "${XPR_NAMES}" | head -n 1)"
             printf "Retrieving Vivado Project '%s'...\n" "${VIVADO_XPR}"
 
         elif [ -f "${VIVADO_XPR_PATH}" ]; then
@@ -220,7 +220,7 @@ while getopts "$OPTSTRING" opt; do
 
             VIVADO_XPR="${XPR_DIR_ABS}/${XPR_FILE_NAME}"
 
-            if ! echo "${VIVADO_XPR}" | grep '\.xpr$' >/dev/null; then
+            if ! printf "%s" "${VIVADO_XPR}" | grep -q '\.xpr$'; then
                 printf "Argument is no Vivado Project '%s'\n" "${VIVADO_XPR}"
                 printf "Exiting...\n"; exit 1
             fi
@@ -238,30 +238,30 @@ while getopts "$OPTSTRING" opt; do
 
         # Infers flavor and configuration name from the existing project (.xpr) filename.
         XPR_BASE_NAME="${XPR_NAME%.xpr}"
-        NUM_ARGS=$(echo "${XPR_BASE_NAME}" | tr '_' ' ' | wc -w)
+        NUM_ARGS=$(printf "%s" "${XPR_BASE_NAME}" | tr '_' ' ' | wc -w)
 
         # Handles no-flavor mode (<prj>_<config>.xpr).
         if [ "$NUM_ARGS" -eq 2 ]; then
-            if ! echo "$ORIG_ARGS" | grep ' -c ' >/dev/null; then
-                CFG=$(echo "${XPR_BASE_NAME}" | cut -d '_' -f 2)
+            if ! printf "%s" "$ORIG_ARGS" | grep -q ' -c '; then
+                CFG=$(printf "%s" "${XPR_BASE_NAME}" | cut -d '_' -f 2)
                 printf "Retrieving configuration-dictionary name '%s.dict'\n" "${CFG}"
                 set -- "$@" "-c" "${CFG}"
             fi
         # Handles flavor mode (<prj>_<flavor>_<config>.xpr).
         elif [ "$NUM_ARGS" -eq 3 ]; then
-            if ! echo "$ORIG_ARGS" | grep ' -f ' >/dev/null; then
-                FLV=$(echo "${XPR_BASE_NAME}" | cut -d '_' -f 2)
+            if ! printf "%s" "$ORIG_ARGS" | grep -q ' -f '; then
+                FLV=$(printf "%s" "${XPR_BASE_NAME}" | cut -d '_' -f 2)
                 printf "Retrieving flavor name '%s'\n" "${FLV}"
                 set -- "$@" "-f" "${FLV}"
             fi
-            if ! echo "$ORIG_ARGS" | grep ' -c ' >/dev/null; then
-                CFG=$(echo "${XPR_BASE_NAME}" | cut -d '_' -f 3)
+            if ! printf "%s" "$ORIG_ARGS" | grep -q ' -c '; then
+                CFG=$(printf "%s" "${XPR_BASE_NAME}" | cut -d '_' -f 3)
                 printf "Retrieving configuration-dictionary name '%s.dict'\n" "${CFG}"
                 set -- "$@" "-c" "${CFG}"
             fi
         else
             # Requires explicit configuration name if format is non-standard.
-            if ! echo "$ORIG_ARGS" | grep ' -c ' >/dev/null; then
+            if ! printf "%s" "$ORIG_ARGS" | grep -q ' -c '; then
                 printf "Please specify configuration-dictionary name\n"
                 printf "Exiting...\n"; exit 1
             fi
@@ -270,13 +270,13 @@ while getopts "$OPTSTRING" opt; do
     f)
         FLAVOR="${OPTARG}"
         # Validates that the flavor name exists in the available flavor list.
-        echo " ${FLAVOR_LIST} " | grep " ${FLAVOR} " >/dev/null
+        printf "%s" "${FLAVOR_LIST}" | grep -q "^${FLAVOR}$"
         if [ $? -ne 0 ]; then
             printf "Flavor '%s' not found\n" "${FLAVOR}"
             printf "Known flavors:\n%s\n" "${FLAVOR_LIST}"
             printf "Exiting...\n"; exit 1
         fi
-        TCL_ARGS="flavor=$FLAVOR ${TCL_ARGS}"
+        TCL_ARGS="flavor='${FLAVOR}' ${TCL_ARGS}"
         ;;
     p)
         PRJ_CFG="${OPTARG}"
@@ -298,7 +298,7 @@ while getopts "$OPTSTRING" opt; do
         fi
 
         if [ -f "${TCL_FILE}" ]; then
-            TCL_ARGS="tcl_file=$TCL_FILE ${TCL_ARGS}"
+            TCL_ARGS="tcl_file='${TCL_FILE}' ${TCL_ARGS}"
         else
             printf "Did not find TCL file '%s'\n" "${TCL_FILE}"
             printf "Exiting...\n"; exit 1
@@ -319,14 +319,14 @@ done
 if [ -z "${FLAVOR}" ] && [ -n "${FLAVOR_LIST}" ]; then
     WORK_DIR=$(basename "$(pwd)")
 
-    echo " ${FLAVOR_LIST} " | grep " ${WORK_DIR} " >/dev/null
+    printf "%s" "${FLAVOR_LIST}" | grep -q "^${WORK_DIR}$"
     if [ $? -ne 0 ]; then
         printf "Please specify a flavor\n"
         printf "Known flavors:\n%s\n" "${FLAVOR_LIST}"
         printf "Exiting...\n"; exit 1
     else
         FLAVOR="${WORK_DIR}"
-        TCL_ARGS="flavor=${FLAVOR} ${TCL_ARGS}"
+        TCL_ARGS="flavor='${FLAVOR}' ${TCL_ARGS}"
         printf "Running build for flavor %s ...\n" "${FLAVOR}"
     fi
 fi
@@ -354,22 +354,22 @@ while getopts "$OPTSTRING" opt; do
             printf "No Vivado project specified for option '-s'\n"
             printf "Exiting...\n"; exit 1
         # Validates that the specified start step is recognized.
-        elif ! echo " ${VALID_STEPS} " | grep " ${STEP} " >/dev/null; then
+        elif ! printf "%s" " ${VALID_STEPS} " | grep -q " ${STEP} "; then
             printf "Invalid step '%s'\n" "${STEP}"
             printf "Valid build steps: %s\n" "${VALID_STEPS}"
             printf "Exiting...\n"; exit 1
         fi
-        TCL_ARGS="start_step=${STEP} ${TCL_ARGS}"
+        TCL_ARGS="start_step='${STEP}' ${TCL_ARGS}"
         ;;
     e)
         STEP="${OPTARG}"
         # Validates that the specified end step is recognized.
-        if ! echo " ${VALID_STEPS} " | grep " ${STEP} " >/dev/null; then
+        if ! printf "%s" " ${VALID_STEPS} " | grep -q " ${STEP} "; then
             printf "Invalid step '%s'\n" "${STEP}"
             printf "Valid build steps: %s\n" "${VALID_STEPS}"
             printf "Exiting...\n"; exit 1
         fi
-        TCL_ARGS="end_step=${STEP} ${TCL_ARGS}"
+        TCL_ARGS="end_step='${STEP}' ${TCL_ARGS}"
         ;;
     c)
         CONFIG_DICT_NAME="${OPTARG%.dict}.dict"
@@ -380,10 +380,10 @@ while getopts "$OPTSTRING" opt; do
         fi
         ;;
     g)
-        TCL_ARGS="generic=${OPTARG} ${TCL_ARGS}"
+        TCL_ARGS="generic='${OPTARG}' ${TCL_ARGS}"
         ;;
     v)
-        TCL_ARGS="vdefine=${OPTARG} ${TCL_ARGS}"
+        TCL_ARGS="vdefine='${OPTARG}' ${TCL_ARGS}"
         ;;
     i)
         TCL_ARGS="ign_vivado_vers ${TCL_ARGS}"
@@ -399,18 +399,18 @@ if [ -z "${CONFIG_DICT_NAME}" ]; then
         printf "Exiting...\n"; exit 1
     else
         # Prioritizes "config.dict" if multiple dictionaries are found.
-        if echo " ${CONFIG_DICT_NAMES} " | grep " config\.dict " >/dev/null; then
+        if printf "%s" " ${CONFIG_DICT_NAMES} " | grep -q " config\.dict "; then
             CONFIG_DICT_NAME="config.dict"
-        elif [ "$(echo "${CONFIG_DICT_NAMES}" | wc -l)" -gt 1 ]; then
+        elif [ "$(printf "%s" "${CONFIG_DICT_NAMES}" | wc -l)" -gt 1 ]; then
             # Requires explicit selection if multiple non-default dictionaries exist.
             printf "Multiple configuration-dictionary files found. Use the -c option to pick one:\n"
-            for I in ${CONFIG_DICT_NAMES}; do
+            printf "%s\n" "${CONFIG_DICT_NAMES}" | while IFS= read -r I; do
                 printf "\t%s\n" "$(basename "${I}")"
             done
             printf "Exiting...\n"; exit 1
         else
             # Selects the single dictionary file found.
-            CONFIG_DICT_NAME=$(basename "$(echo "${CONFIG_DICT_NAMES}" | cut -d ' ' -f 1)")
+            CONFIG_DICT_NAME=$(basename "$(printf "%s" "${CONFIG_DICT_NAMES}" | head -n 1)")
         fi
     fi
 fi
@@ -418,34 +418,31 @@ fi
 # Function to recursively merge dictionary files using /include/ statements.
 # Prints key-value tupels, one per line, to stdout.
 merge_dicts() {
-    DICT="$DICT_DIR/$1"
-    if [ ! -f "$DICT" ]; then
-        # Print nothing on failure (handled by caller)
-        return 1
+    local DICT="$DICT_DIR/$1"
+    [ ! -f "$DICT" ] && return 1
+
+    # Print the clean content (no comments, no includes)
+    sed -e '/^[ \t]*#/d' -e '/\/include\//d' "$DICT"
+
+    # Extract include files: handles quotes and spaces
+    local INCL_FILES
+    INCL_FILES=$(grep "/include/" "$DICT" | sed -e '/^[ \t]*#/d' \
+        -e 's/.*\/include\/[ \t]*"\(.*\)".*/\1/' \
+        -e 's/.*\/include\/[ \t]*\([^ \t]*\).*/\1/')
+
+    if [ -n "${INCL_FILES}" ]; then
+        while IFS= read -r INCL_FILE; do
+            [ -z "$INCL_FILE" ] && continue
+            merge_dicts "$INCL_FILE" || return 1
+        done <<EOF
+$INCL_FILES
+EOF
     fi
-
-    # Outputs the dictionary content (one key-value pair per line), excluding comments and include lines.
-    cat "$DICT" | sed -e '/^[ \t]*#/d' | grep -v '/include/'
-
-    # Extracts include paths from the dictionary file, ignoring comments.
-    INCL_FILES=$(grep "/include/" "$DICT" | sed -e '/^[ \t]*#/d' | \
-        cut -d ' ' -f 2 | tr -d '"')
-
-    # Recursively merges included files by piping output.
-    if [ -z "${INCL_FILES}" ]; then
-        return 0
-    fi
-    for INCL_FILE in $INCL_FILES; do
-        if ! merge_dicts "$INCL_FILE"; then
-            return 1 # Propagate failure
-        fi
-    done
-    return 0
 }
 
 # Executes the dictionary merge process.
 # MDICT captures the full dictionary content, with one key-value pair per line.
-MDICT=$(merge_dicts "$CONFIG_DICT_NAME")
+MDICT="$(merge_dicts "$CONFIG_DICT_NAME")"
 if [ $? -gt 0 ]; then
     printf "ERROR: Parsing dictionary include files failed\n"; exit 1
 fi
@@ -462,10 +459,10 @@ get_value4key() {
         # The last matching key-value pair determines the final value (least precedence).
         if [ "$CURRENT_KEY" = "$KEY" ]; then
             # Removes surrounding quotes from the value.
-            VALUE=$(echo "$CURRENT_VALUE" | tr -d '"')
+            VALUE=$(printf "%s" "$CURRENT_VALUE" | tr -d '"')
         fi
     done
-    echo "$VALUE"
+    printf "%s\n" "$VALUE"
     return 0
 }
 
@@ -473,14 +470,14 @@ get_value4key() {
 # The MDICT string is explicitly piped into get_value4key.
 DICT_CDF_VER=$(printf "%s\n" "$MDICT" | get_value4key "CDF_VER")
 if [ -n "${DICT_CDF_VER}" ]; then
-    DICT_CDF_VER_MAJOR=$(echo "$DICT_CDF_VER" | cut -d '.' -f 1)
-    DICT_CDF_VER_MINOR=$(echo "$DICT_CDF_VER" | cut -d '.' -f 2)
+    DICT_CDF_VER_MAJOR=$(printf "%s" "$DICT_CDF_VER" | cut -d '.' -f 1)
+    DICT_CDF_VER_MINOR=$(printf "%s" "$DICT_CDF_VER" | cut -d '.' -f 2)
 else
     DICT_CDF_VER_MAJOR=1
     DICT_CDF_VER_MINOR=0
 fi
-CDF_VER_MAJOR=$(echo "$CDF_VER" | cut -d '.' -f 1)
-CDF_VER_MINOR=$(echo "$CDF_VER" | cut -d '.' -f 2)
+CDF_VER_MAJOR=$(printf "%s" "$CDF_VER" | cut -d '.' -f 1)
+CDF_VER_MINOR=$(printf "%s" "$CDF_VER" | cut -d '.' -f 2)
 
 # Compares major and minor versions.
 if [ "$DICT_CDF_VER_MAJOR" -lt "$CDF_VER_MAJOR" ]; then
@@ -515,7 +512,7 @@ if [ -z "${PRJ_NAME}" ]; then
     fi
 fi
 # Sanitizes the project name by replacing spaces/underscores with hyphens.
-PRJ_NAME=$(echo "$PRJ_NAME" | sed -e 's/[ _]\+/-/g')
+PRJ_NAME=$(printf "%s" "$PRJ_NAME" | sed -e 's/[ _]\+/-/g')
 
 shift $((OPTIND-1))
 if [ "$1" = "--" ]; then shift; fi
@@ -530,8 +527,8 @@ if [ -z "${XPR_NAME}" ]; then
 
     XPR_NAME="${XPR_NAME}_${CONFIG_DICT_NAME%.dict}"
 fi
-TCL_ARGS="xpr_name=${XPR_NAME%.xpr} ${TCL_ARGS}"
-TCL_ARGS="config_dict_name=${CONFIG_DICT_NAME} ${TCL_ARGS}"
+TCL_ARGS="xpr_name='${XPR_NAME%.xpr}' ${TCL_ARGS}"
+TCL_ARGS="config_dict_name='${CONFIG_DICT_NAME}' ${TCL_ARGS}"
 
 ################################################################################
 ## Retrieves GIT version information
@@ -546,7 +543,7 @@ get_vcsver()
         # Prints the Git hash prefixed with 'g'.
         printf 'g%s' "$head_hash"
         # Checks for uncommitted changes to append the '-dirty' flag.
-        if git diff-index --name-only HEAD | read dummy; then
+        if [ -n "$(git diff-index --name-only HEAD | head -n 1)" ]; then
             printf '%s' "-dirty"
         fi
     fi
@@ -639,7 +636,7 @@ vivado \
     -mode batch \
     -notrace \
     -source "$SCRIPT_DIR/build.tcl" \
-    -tclargs $TCL_ARGS
+    -tclargs "$TCL_ARGS"
 RETVAL=$?
 
 # time-command workaround
@@ -654,12 +651,12 @@ printf "Vivado Project:\n"
 # Find artifacts in the current directory and print their absolute paths.
 find . -maxdepth 1 -type f \
     -name "*.xpr" \
-    -exec sh -c 'printf "\t%s/%s\n" "$(pwd)" "${0#./}"' {} \;
+    -exec sh -c 'printf "\t%s/%s\n" "$(pwd)" "${1#./}"' _ {} \;
 printf "FPGA Binaries:\n"
 # Find artifacts in the current directory and print their absolute paths.
 find . -maxdepth 1 -type f \
     \( -name "*.ltx" -o -name "*.pdi" -o -name "*.bit" -o -name "*.mcs" -o -name "*.xsa" \) \
-    -exec sh -c 'printf "\t%s/%s\n" "$(pwd)" "${0#./}"' {} \;
+    -exec sh -c 'printf "\t%s/%s\n" "$(pwd)" "${1#./}"' _ {} \;
 
 cd "$CWD_SAVE"
 

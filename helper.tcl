@@ -39,40 +39,67 @@ proc restore_dict {filename} {
     set buf [read $fd]
     close $fd
 
-    # Remove comment, empty lines and trailing spaces
+    # Pre-process the buffer to make it a valid Tcl list even with spaces in paths
+    set lines [split $buf "\n"]
+    set cleaned_lines [list]
     set num 0
-    set trim_dict ""
-    set data [split $buf "\n"]
-    foreach line $data {
-        # A number is added to the include/delete statement per file as it is
-        # treated as a dictionary key that needs be unique
-        if {[string match "\/include\/*" $line]} {
+
+    foreach line $lines {
+        # Strip comments
+        set comment_pos [string first "#" $line]
+        if {$comment_pos >= 0} { set line [string range $line 0 [expr {$comment_pos - 1}]] }
+        set line [string trim $line]
+        if {$line eq ""} { continue }
+
+        # Handle includes/deletes
+        if {[string match "/include/*" $line]} {
             set line [string replace $line 0 9 "/include$num/ "]
             incr num
-        } elseif {[string match "\/delete\/*" $line]} {
+        } elseif {[string match "/delete/*" $line]} {
             set line [string replace $line 0 8 "/delete$num/ "]
             incr num
         }
-        if {![string equal $line ""] && [string first "#" $line] < 0} {
-            set trim_dict "$trim_dict [string trimleft $line]"
+
+        # If a line looks like: KEY value with space
+        # and doesn't have braces, wrap the value in braces for Tcl
+        if {![string match "*\{*" $line] && ![string match "*\}*" $line]} {
+            set first_space [string first " " $line]
+            if {$first_space != -1} {
+                set key [string range $line 0 [expr {$first_space - 1}]]
+                set val [string trim [string range $line $first_space end]]
+
+                # Strip double quotes before wrapping in braces
+                set val [string trim $val "\""]
+
+                set line "$key {$val}"
+            }
         }
+        lappend cleaned_lines $line
     }
-    set trim_dict "$trim_dict DDIR [file dirname [file normalize $filename]]"
-    return $trim_dict
+
+    # Join back and add DDIR wrapped in braces
+    set ddir [file dirname [file normalize $filename]]
+    set final_buf [join $cleaned_lines "\n"]
+    append final_buf "\n\nDDIR {$ddir}"
+
+    return $final_buf
 }
 
 # Add keys in dsrc to dglob
 proc parse_dict {dsrc} {
     set dglob [dict create]
     dict for {key val} $dsrc {
-        if {[string match "\/include*\/" $key]} {
-            set incl_file [file normalize "[dict get $dsrc "DDIR"]/$val"]
+        if {[string match "/include*/" $key]} {
+            set ddir [dict get $dsrc "DDIR"]
+            set incl_file [file normalize "$ddir/$val"]
             set dsub [parse_dict [restore_dict $incl_file]]
             set dglob [merge_dict $dglob $dsub]
-        } elseif {[string match "\/delete*\/" $key]} {
+        } elseif {[string match "/delete*/" $key]} {
             set dglob [delete_key $dglob $val]
         } else {
-            set dglob [merge_dict $dglob "$key {$val}"]
+            # Create a temporary single-item dict to merge
+            set item [dict create $key $val]
+            set dglob [merge_dict $dglob $item]
         }
     }
     return $dglob
@@ -220,7 +247,7 @@ proc git_stamp {build_branch} {
         }
 
         puts "Point to previous branch $curbranch again ..."
-        if {[catch {exec git checkout -q $curbranch} result] != 0} {
+        if {[catch {exec git checkout -q "${curbranch}"} result] != 0} {
             puts "failed ($result)."
             return -code 1
         }

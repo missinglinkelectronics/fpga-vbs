@@ -53,42 +53,42 @@ set ign_vivado_vers  0
 set tcl_files        [list]
 
 # Process command line options
-set num_arg $argc
-if {$num_arg > 0} {
-    for {set i 0} {$i < $num_arg} {incr i} {
-        set arg [lindex $argv $i]
-        if {[regexp {^script_dir=(.*)$} $arg match val] == 1} {
-            set scripts_dir "[file normalize "${val}"]"
+if {$argc > 0} {
+    set arg_list $argv
+    if {$argc == 1} {
+        # Converts the shell-quoted string into a Tcl list
+        set raw_args [lindex $argv 0]
+        set arg_list [list]
+
+        # Regex to find key='value' pairs
+        set matches [regexp -all -inline {[^ ]+='[^']*'|[^ ]+=[^ ]+|[^ ]+} $raw_args]
+        set arg_list $matches
+    }
+
+    foreach arg $arg_list {
+        set pos [string first "=" $arg]
+        if {$pos == -1} {
+            if {[string match "ign_vivado_vers*" $arg]} { set ign_vivado_vers 1 }
+            continue
         }
-        if {[regexp {^base_dir=(.*)$} $arg match val] == 1} {
-            set base_dir "[file normalize "${val}"]"
-        }
-        if {[regexp {^flavor=(.*)$} $arg match val] == 1} {
-            set flavor "$val"
-        }
-        if {[regexp {^xpr_name=(.*)$} $arg match val] == 1} {
-            set xpr_name "$val"
-        }
-        if {[regexp {^config_dict_name=(.*)$} $arg match val] == 1} {
-            set config_dict_name $val
-        }
-        if {[regexp {^start_step=(.*)$} $arg match val] == 1} {
-            set start_step $build_steps($val)
-        }
-        if {[regexp {^end_step=(.*)$} $arg match val] == 1} {
-            set end_step $build_steps($val)
-        }
-        if {[regexp {^generic=(.*)$} $arg match val] == 1} {
-            lappend generic_tupels $val
-        }
-        if {[regexp {^vdefine=(.*)$} $arg match val] == 1} {
-            lappend vdefine_tupels $val
-        }
-        if {[regexp {^ign_vivado_vers.*} $arg] == 1} {
-            set ign_vivado_vers 1
-        }
-        if {[regexp {^tcl_file=(.*)$} $arg match val] == 1} {
-            lappend tcl_files $val
+
+        set key [string range $arg 0 [expr {$pos - 1}]]
+        set val [string range $arg [expr {$pos + 1}] end]
+
+        # Strip the single quotes
+        set val [string trim $val "'"]
+
+        switch -exact -- $key {
+            "script_dir"        { set scripts_dir [file normalize $val] }
+            "base_dir"          { set base_dir [file normalize $val] }
+            "flavor"            { set flavor $val }
+            "xpr_name"          { set xpr_name $val }
+            "config_dict_name"  { set config_dict_name $val }
+            "start_step"        { set start_step $build_steps($val) }
+            "end_step"          { set end_step $build_steps($val) }
+            "generic"           { lappend generic_tupels $val }
+            "vdefine"           { lappend vdefine_tupels $val }
+            "tcl_file"          { lappend tcl_files $val }
         }
     }
 }
@@ -159,12 +159,14 @@ dict set bvars_dict CDF   $config_dict_file
 
 set mdt_params [dict get $config_dict "MDT_PARAMS"]
 dict for {key val} $mdt_params {
+    set val [string trim $val "\""]
     set "${key}" "${val}"
 }
 
 if {[dict exists $config_dict "OPT_PARAMS"]} {
     set opt_params [dict get $config_dict "OPT_PARAMS"]
     dict for {key val} $opt_params {
+        set val [string trim $val "\""]
         set "${key}" "${val}"
     }
 }
@@ -172,6 +174,7 @@ if {[dict exists $config_dict "OPT_PARAMS"]} {
 if {[dict exists $config_dict "SIM_PARAMS"]} {
     set sim_params [dict get $config_dict "SIM_PARAMS"]
     dict for {key val} $sim_params {
+        set val [string trim $val "\""]
         set "${key}" "${val}"
     }
 }
@@ -181,6 +184,7 @@ if {[dict exists $config_dict "TCL_GLOBALS"]} {
     set tcl_globals [dict get $config_dict "TCL_GLOBALS"]
     dict for {key val} $tcl_globals {
         global "${key}"
+        set val [string trim $val "\""]
         set "${key}" "${val}"
     }
 }
@@ -328,8 +332,8 @@ if {$start_step == $build_steps(prj)} {
     }
 
     puts "Create filesets constraints, source, simulation"
-    create_project $xpr_name $project_dir -part $part -force
-    set cur_prj [get_projects $xpr_name]
+    create_project "$xpr_name" [file normalize $project_dir] -part $part -force
+    set cur_prj [current_project]
 
     set_property board_part       $board            $cur_prj
     set_property target_language  $target_language  $cur_prj
@@ -350,19 +354,18 @@ if {$start_step == $build_steps(prj)} {
 
         # Procedure to resolve a shell variable and return the full path
         proc resolve_path {path flavor_dir} {
-            # Resolve shell variables using shell execution
-            set shell_command "echo $path"
+            # Use double quotes to protect the path for the shell
+            set shell_command "echo \"$path\""
+            # Use catch to handle potential shell execution errors
+            if {[catch {exec /bin/sh -c $shell_command} resolved_path]} {
+                set resolved_path $path
+            }
 
-            # Use exec to get the resolved path
-            set resolved_path [exec /bin/sh -c $shell_command]
+            set resolved_path [string trim $resolved_path]
 
-            # Check if the resolved path is absolute (for UNIX and Windows)
-            if {[string index $resolved_path 0] eq "/" || \
-                [string match "?:*\\*" $resolved_path]} {
-                # It's an absolute path
-                return $resolved_path
+            if {[string index $resolved_path 0] eq "/" || [string match "?:*\\*" $resolved_path]} {
+                return [file normalize $resolved_path]
             } else {
-                # Normalize it relative to the flavor directory
                 return [file normalize [file join $flavor_dir $resolved_path]]
             }
         }
@@ -370,14 +373,16 @@ if {$start_step == $build_steps(prj)} {
         # Use the resolve_path function for each IP-XACT directory
         foreach value $ipxact_dir {
             set resolved_path [resolve_path "$value" $flavor_dir]
+            # Append as a single element to the list
             lappend ipxact_dirs $resolved_path
-            puts $resolved_path
         }
 
         if {[package vcompare $vivado_version_numeric 2014.3] >= 0} {
-            set_property ip_repo_paths $ipxact_dirs $cur_prj
+            # Wrap the list in another list. This forces Vivado to treat the
+            # whole collection as a single property value, protecting whitespace
+            set_property "ip_repo_paths" "$ipxact_dirs" $cur_prj
         } else {
-            set_property ip_repo_paths $ipxact_dirs [current_fileset]
+            set_property "ip_repo_paths" "$ipxact_dirs" [current_fileset]
         }
     }
 
@@ -391,7 +396,7 @@ if {$start_step == $build_steps(prj)} {
         }
         file mkdir $use_ip_cache_dir
         config_ip_cache -import_from_project -use_cache_location \
-                "${use_ip_cache_dir}"
+                "[file normalize $use_ip_cache_dir]"
     }
 
     if {[string equal [get_filesets -quiet $fileset_constrs_name] ""]} {
@@ -411,12 +416,11 @@ if {$start_step == $build_steps(prj)} {
 
     if {[package vcompare $vivado_version_numeric 2018.3] >= 0} {
         set fileset_utils [current_fileset "utils_1"]
-        set vbs_bd_util_file [file normalize \
-            "${scripts_dir}/util/vbs_bd_util.tcl"]
+        set vbs_bd_util_file [file normalize "${scripts_dir}/util/vbs_bd_util.tcl"]
 
-        add_files -fileset $fileset_utils -norecurse $helper_tcl_file
-        add_files -fileset $fileset_utils -norecurse $bvars_file
-        add_files -fileset $fileset_utils -norecurse $vbs_bd_util_file
+        add_files -fileset $fileset_utils -norecurse [list $helper_tcl_file]
+        add_files -fileset $fileset_utils -norecurse [list $bvars_file]
+        add_files -fileset $fileset_utils -norecurse [list $vbs_bd_util_file]
     }
 
 
@@ -457,7 +461,7 @@ if {$start_step == $build_steps(prj)} {
             set current_filelist [process_filelist "${flavor_dir}/${f_list}" "${flavor_dir}/${files_dir}"]
 
             if {[llength $current_filelist] > 0} {
-                add_files -norecurse -fileset $fileset_obj $current_filelist
+                add_files -norecurse -fileset $fileset_obj [list {*}$current_filelist]
 
                 if {[dict size $properties] > 0} {
                     foreach target_file $current_filelist {
@@ -609,7 +613,7 @@ if {$start_step == $build_steps(prj)} {
         }
     }
     if {[llength $generic_tupels] > 0} {
-        set_property generic $generic_tupels $fileset_sources
+        set_property generic [list $generic_tupels] $fileset_sources
     }
 
     if {[dict exists $config_dict "VERILOG_OPTIONS"]} {
@@ -699,7 +703,7 @@ if {$start_step == $build_steps(prj)} {
                         for module '${ooc_module}'"
             } else {
                 add_files -norecurse -fileset $fileset_ooc_module \
-                        $filelist_ooc_constr
+                        [list {*}$filelist_ooc_constr]
             }
         }
     }
@@ -710,9 +714,9 @@ if {$start_step == $build_steps(prj)} {
     puts "Creating synthesis run ..."
     set run_synth_name "synth_1"
     if {[string equal [get_runs -quiet $run_synth_name] ""]} {
-        create_run $run_synth_name -part $part \
+        create_run "$run_synth_name" -part $part \
                 -flow "Vivado Implementation ${vivado_year}" \
-                -srcset $fileset_sources -constrset $fileset_constrs
+                -srcset "$fileset_sources" -constrset "$fileset_constrs"
     }
     set run_synth [get_runs $run_synth_name]
 
@@ -750,9 +754,9 @@ if {$start_step == $build_steps(prj)} {
     puts "Creating implementation run ..."
     set run_impl_name "impl_1"
     if {[string equal [get_runs -quiet $run_impl_name] ""]} {
-        create_run $run_impl_name -part $part -parent_run $run_synth \
+        create_run "$run_impl_name" -part $part -parent_run "$run_synth" \
                 -flow "Vivado Implementation ${vivado_year}" \
-                -constrset $fileset_constrs
+                -constrset "$fileset_constrs"
     }
     set run_impl [get_runs $run_impl_name]
 
@@ -796,7 +800,7 @@ if {$start_step == $build_steps(prj)} {
         dict for {build_step filenames} $hooks {
             if {[info exists fileset_utils]} {
                 foreach file $filenames {
-                    add_files -fileset $fileset_utils -norecurse $file
+                    add_files -fileset $fileset_utils -norecurse [list $file]
                 }
             }
 
@@ -874,7 +878,7 @@ if {$start_step == $build_steps(prj)} {
     exec_usr_hooks "bld_prj_post" $bvars_dict
 } else {
     puts "INFO: Opening project ${xpr_name}.xpr"
-    open_project "${xpr_name}.xpr"
+    open_project [file normalize "${xpr_name}.xpr"]
 }
 
 ################################################################################
@@ -887,7 +891,7 @@ set run_impl  [current_run -implementation]
 dict set bvars_dict RSYNTH "${run_synth}"
 dict set bvars_dict RIMPL  "${run_impl}"
 dict set bvars_dict RSIM   [current_fileset -simset]
-dict set bvars_dict PNAME  [get_projects]
+dict set bvars_dict PNAME  [get_property NAME [current_project]]
 dict set bvars_dict TLNAME [get_property top [current_fileset]]
 save_dict "${bvars_file}" $bvars_dict
 
@@ -949,7 +953,7 @@ if {$start_step == $build_steps(sim_prep) || $end_step == $build_steps(sim_prep)
                 }
             }
             puts "INFO: Running command 'compile_simlib ${cmd_args}'"
-            catch {eval "compile_simlib ${cmd_args}"}
+            catch {compile_simlib {*}$cmd_args}
         }
     }
 
@@ -1074,6 +1078,7 @@ if {$start_step == $build_steps(package) || \
 
         # Set output file name
         set result_base [dict get $bvars_dict "PNAME"]
+        set result_base [regsub -all {\s+} $result_base "_"]
         if {[string length $bstamp] > 0} {
             append result_base "_${bstamp}"
         }
@@ -1104,7 +1109,7 @@ if {$start_step == $build_steps(package) || \
         }
 
         # Create IP package project
-        eval "ipx::package_project ${cmd_args}"
+        eval "ipx::package_project {*}$cmd_args"
 
         # Set IP properties
         set_property vendor_display_name "${ven_disp_name}" [ipx::current_core]
@@ -1160,13 +1165,15 @@ if {$start_step == $build_steps(package) || \
         # Wait 1 second so that 'zip -u' sees a newer timestamp
         after 1000
         # Insert result_base into component.xml
-        if {[catch {exec sed -i "s|<spirit:component|<spirit:component\
-                xmlns:vbs=\"$result_base\"|" "${root_dir}/component.xml"}]} {
-            puts "ERROR: Updating component.xml failed ($result)"
+        set sed_regex "s|<spirit:component|<spirit:component xmlns:vbs=\"$result_base\"|"
+        if {[catch {exec sed -i $sed_regex [file normalize "${root_dir}/component.xml"]} result]} {
+            puts "ERROR: Updating component.xml failed: $result"
         }
-        if {[catch {exec zip -ju "${root_dir}/${result_base}_${zip_name}" \
-                "${root_dir}/component.xml"}]} {
-            puts "ERROR: Updating zip file failed ($result)"
+
+        set zip_archive [file normalize "${root_dir}/${result_base}_${zip_name}"]
+        set xml_file [file normalize "${root_dir}/component.xml"]
+        if {[catch {exec zip -ju $zip_archive $xml_file} result]} {
+            puts "ERROR: Updating zip file failed: $result"
         }
 
         puts "Done packaging project in IP-XACT format. Output file ${zip_file}"
