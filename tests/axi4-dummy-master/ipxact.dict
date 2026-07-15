@@ -1,0 +1,61 @@
+################################################################################
+## TCL dictionary with project settings as white space separated tupels
+################################################################################
+
+# Configuration Dictionary File Version
+CDF_VER "1.4.0"
+
+## Project parameters
+# Override project.cfg project name
+PRJ_NAME "axi4-dummy"
+
+# Mandatory
+MDT_PARAMS {
+    # Vivado toolchain version string e.g. 2017.4
+    req_vivado_vers "2020.2"
+    # Target language e.g. Verilog (or VHDL)
+    target_language "VHDL"
+    # Default library e.g. xil_defaultlib
+    default_lib "xil_defaultlib"
+    # FPGA part number e.g. xc7z045ffg900-2
+    part "xczu9eg-ffvb1156-2-e"
+}
+
+# Fileset: 'filelist' and 'directory' tupels both as paths relative to flavor.
+# The filepaths listed in a 'filelist' are expected to be located relative to
+# the 'directory' path
+SRC_SET {
+    filelists/hdl.f .
+}
+
+PACKAGE_IP {
+    # Mandatory IP core identification
+    ident {
+        # Package block design - leave empty for non-BD based projects
+        bd_name ""
+        # Package Nested IPs in source or xci files e.g. true (or false)
+        package_xci "true"
+        # Taxonomy e.g. /UserIP
+        taxonomy "/UserIP"
+        # Library e.g. user
+        lib "user"
+        ipname "axi4_dummy_master"
+        # version and core_revision need to match the HDL toplevel generics
+        version "1.0"
+        core_revision "0"
+        display_name "AXI4 dummy master"
+        description "An inactive AXI4 master interface"
+        vendor "missinglinkelectronics.com"
+        ven_disp_name "MissingLinkElectronics"
+        company_url "https://www.missinglinkelectronics.com"
+        # supported_device_families: leave empty to add all device families
+        supported_device_families ""
+    }
+    ## Optional
+    # Output folder container relative to flavor
+    container_dir "build/ipxact_output"
+    # TCL file relative to flavor containing IP package commands
+    component_tcl "tcl/component.tcl"
+    # TCL file relative to flavor containing BD Propagation TCL file
+    bd_tcl "tcl/bd.tcl"
+}
