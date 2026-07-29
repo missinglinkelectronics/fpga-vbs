@@ -226,7 +226,7 @@ if {[dict exists $config_dict "USER_HOOKS"]} {
 set vivado_version [version -short]
 set vivado_version_numeric [lindex [split $vivado_version "_"] 0]
 set req_base_version $req_vivado_vers
-set version_match_err $ign_vivado_vers
+set version_match_err 0
 
 # Check if the running version starts with the required base version.
 if {![string match "${req_base_version}*" $vivado_version]} {
@@ -242,6 +242,10 @@ if {[info exists req_vivado_patch]} {
             lappend missing_patch $required_patch
         }
     }
+}
+
+if {$ign_vivado_vers == 1} {
+    set version_match_err 1
 }
 
 if {$version_match_err == 0} {
