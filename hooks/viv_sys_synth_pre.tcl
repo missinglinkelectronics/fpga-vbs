@@ -30,12 +30,16 @@
 
 ################################################################################
 
-puts "Start hook script 'Pre-Synthesis' ..."
-
 set project_dir [file normalize "[pwd]/../.."]
 set bvars_file [get_files -quiet "bvars.dict"]
 if {"${bvars_file}" == ""} {
     set bvars_file [file normalize "${project_dir}/bvars.dict"]
+}
+if {![file exists "${bvars_file}"]} {
+    puts "WARNING: 'bvars.dict' not found. Skipping hook script 'Pre-Synthesis'."
+    return
+} else {
+    puts "Start hook script 'Pre-Synthesis' ..."
 }
 set helper_script [get_files -quiet "helper.tcl"]
 if {"${helper_script}" == ""} {

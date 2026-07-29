@@ -37,6 +37,12 @@ set bvars_file [get_files -quiet "bvars.dict"]
 if {"${bvars_file}" == ""} {
     set bvars_file [file normalize "${project_dir}/bvars.dict"]
 }
+if {![file exists "${bvars_file}"]} {
+    puts "WARNING: 'bvars.dict' not found. Skipping hook script 'Pre-Bitstream'."
+    return
+} else {
+    puts "Start hook script 'Pre-Bitstream' ..."
+}
 set helper_script [get_files -quiet "helper.tcl"]
 if {"${helper_script}" == ""} {
     set hooks_dir [file dirname [info script]]
