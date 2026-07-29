@@ -1018,7 +1018,7 @@ if {$start_step == $build_steps(package) || \
         }
 
         # Set supported_device_families values
-        if {![llength $supported_device_families]} {
+        if {![info exists supported_device_families] || ![llength $supported_device_families]} {
             # Enable all
             set supported_device_families [list \
                 zynquplus artix7 artix7l artixuplus qartix7 qkintex7 qkintex7l kintexu \
