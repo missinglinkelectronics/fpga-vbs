@@ -260,6 +260,9 @@ if {$version_match_err == 0} {
     exit 2
 }
 
+dict set bvars_dict VVER $vivado_version
+dict set bvars_dict VERR $version_match_err
+
 set vivado_year [lindex [split "${vivado_version}" "."] 0]
 
 ################################################################################
