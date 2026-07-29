@@ -11,18 +11,18 @@ test_axi4-dummy-master_packaging:
     matrix:
       - ENV_SCRIPT: vitis-v2020.2.sh
         REASON: "The exact Vivado version listed in the dict file"
-        EXTRA_ARGS: "" # no -i should be needed
+        EXTRA_ARGS: "-c ipxact.dict" # no -i should be needed
       - ENV_SCRIPT: vitis-v2021.2.sh
         REASON: "A rather old Vivado version"
-        EXTRA_ARGS: "-i"
+        EXTRA_ARGS: "-i -c ipxact.dict"
       - ENV_SCRIPT: vitis-v2025.2.sh
         REASON: "A recent Vivado version widely used"
-        EXTRA_ARGS: "-i"
+        EXTRA_ARGS: "-i -c ipxact.dict"
       - ENV_SCRIPT: vitis-v2025.2-ksb1.sh
         REASON: "A Vivado version with extra patches"
-        EXTRA_ARGS: "-i"
+        EXTRA_ARGS: "-i -c ipxact-v2025.2-ksb1.dict"
       - ENV_SCRIPT: vitis-v2026.1.sh
         REASON: "The latest Vivado version"
-        EXTRA_ARGS: "-i"
+        EXTRA_ARGS: "-i -c ipxact.dict"
   script:
     - cd tests/axi4-dummy-master && ${ENV_SCRIPT} ../../build.sh -e package ${EXTRA_ARGS}

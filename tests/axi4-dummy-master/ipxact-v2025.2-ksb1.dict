@@ -1,0 +1,7 @@
+# Include base configuration
+/include/ "ipxact.dict"
+
+# Override the FPGA part as Vivado v2025.2 ksb1 does not have the part xczu9eg
+MDT_PARAMS {
+    part "xcvn3716-vsvb2197-1LP-e-S"
+}
