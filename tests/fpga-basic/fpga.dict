@@ -1,0 +1,92 @@
+################################################################################
+## TCL dictionary with project settings as white space separated tupels
+################################################################################
+
+# Configuration Dictionary File Version
+CDF_VER "1.4.3"
+
+## Project parameters
+# Override project.cfg project name
+PRJ_NAME "vmk180-basic"
+# Mandatory
+MDT_PARAMS {
+    # AMD Vivado TM toolchain version string e.g. 2017.4
+    req_vivado_vers "2026.1"
+    # Target language e.g. Verilog (or VHDL)
+    target_language "Verilog"
+    # Default library e.g. xil_defaultlib
+    default_lib "xil_defaultlib"
+    # FPGA part number e.g. xc7z045ffg900-2
+    part "xcvm1802-vsva2197-2MP-e-S"
+}
+
+# Fileset: 'filelist' and 'directory' tupels both as paths relative to flavor.
+# The filepaths listed in a 'filelist' are expected to be located relative to
+# the 'directory' path
+# Per filelist support for property injection. "DIR"-key is VBS custom and
+# mandatory.
+CONSTR_SET {
+    filelists/constr.f constr
+    filelists/constr_synth_only.f {
+        DIR                    "constr"
+        USED_IN_IMPLEMENTATION "0"
+    }
+}
+
+SRC_SET {
+    filelists/hdl.f ""
+    ../axi4-dummy-master/filelists/hdl.f {
+        DIR               "../axi4-dummy-master"
+        LIBRARY           "my_lib"
+        FILE_TYPE         "VHDL 2019"
+    }
+}
+
+TCL_SET "filelists/bd.f ."
+
+# Optional
+OPT_PARAMS {
+    # FPGA design top level module name e.g fpga_top
+    hdl_top_module_name "fpga_top"
+    # Debug target constraints file. If the file does not exist, it will be
+    # created local to the project (with name 'debug.xdc' for an empty string)
+    debug_target ""
+    # FPGA board part "" or e.g. xilinx.com:zc706:part0:1.3
+    board "xilinx.com:vmk180_newl:part0:1.1"
+}
+
+# Pass generics to top level HDL
+GENERICS {
+    EXAMPLE_GENERIC0 "TRUE"
+    EXAMPLE_GENERIC1 "FALSE"
+}
+
+VERILOG_OPTIONS {
+    # Verilog defines
+    DEFINES {
+        EXAMPLE_DEFINE0 "FALSE"
+        EXAMPLE_DEFINE1 "TRUE"
+    }
+    SIM_DEFINES {
+        EXAMPLE_SIM_DEFINE0 "0"
+        EXAMPLE_SIM_DEFINE1 "1"
+    }
+}
+
+
+# User hook scripts relative to flavor for Vivado build steps.
+# 'bld_': Execute hook pre/post launch of step in build.tcl
+# 'viv_': Append hook to Vivado pre/post hook
+# Keys:
+# - bld_{prj|synth|impl|bit}_{pre|post}
+# - viv_{sim|synth|bit}_{pre|post}
+# - viv_impl_{opt_design|power_opt_design|place_design|
+#       post_place_power_opt_design|phys_opt_design|route_design|
+#       post_route_phys_opt_design}_{pre|post}
+USER_HOOKS {
+    viv_synth_pre "tcl/synth_pre.tcl"
+    bld_synth_post {
+        "tcl/synth_post0.tcl"
+        "tcl/synth_post1.tcl"
+    }
+}
