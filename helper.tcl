@@ -152,23 +152,6 @@ proc time_stamp {} {
     return $tstamp
 }
 
-# Undo GIT commands
-proc git_undo {old_branch new_branch level} {
-    if {level > 3} {
-        exec -ignorestderr git branch -D "${new_branch}"
-    }
-    if {level > 2} {
-        exec -ignorestderr git reset HEAD^
-    }
-    if {level > 1} {
-        exec -ignorestderr git reset HEAD
-    }
-    if {level > 0} {
-        exec -ignorestderr git checkout -q "${old_branch}"
-    }
-    return -code 1
-}
-
 proc git_exists {} {
     if {[catch {exec git status -s 2>@1} result options]} {
         set ec [dict get $options -errorcode]
@@ -187,76 +170,229 @@ proc git_exists {} {
     return -code 0
 }
 
-# Create git branch with all uncommitted changes
-proc git_stamp {build_branch} {
-    # Get current branch
-    if {[catch {exec git rev-parse --abbrev-ref HEAD} result]} {
-        puts "failed ($result)."
-        return -code 1
+# Helper procedure to commit dirty submodules predictably across build steps
+proc git_stamp_submodules {build_branch repo_root} {
+    set dirty_submodules [list]
+
+    if {[catch {exec git submodule status} sub_output]} {
+        return $dirty_submodules
     }
-    set curbranch $result
+
+    # Extract base build stamp (stripping suffixes like _post-synth or _post-impl)
+    set parts [split $build_branch "_"]
+    if {[llength $parts] >= 3} {
+        set base_stamp "[lindex $parts 0]_[lindex $parts 1]_[lindex $parts 2]"
+    } else {
+        set base_stamp $build_branch
+    }
+    set base_sub_branch "vbs_${base_stamp}"
+    set step_sub_branch "vbs_${build_branch}"
+
+    set lines [split [string trim $sub_output] "\n"]
+    foreach line $lines {
+        set line [string trim $line]
+        if {$line eq ""} continue
+
+        set tokens [regexp -inline -all -- {\S+} $line]
+        if {[llength $tokens] >= 2} {
+            set sub_path [lindex $tokens 1]
+
+            if {[file exists $sub_path]} {
+                # Determine top-level relative path for git update-index
+                set abs_sub [file normalize $sub_path]
+                set abs_root [file normalize $repo_root]
+
+                if {[string first $abs_root $abs_sub] == 0} {
+                    set rel_sub_path [string range $abs_sub [expr {[string length $abs_root] + 1}] end]
+                } else {
+                    set rel_sub_path $sub_path
+                }
+
+                set status [catch {exec git -C $sub_path status -s} sub_status]
+                if {$status == 0 && [string trim $sub_status] ne ""} {
+
+                    # Check if a base VBS commit exists for this build run
+                    set can_reuse 0
+                    if {[catch {exec git -C $sub_path rev-parse --verify $base_sub_branch} existing_commit] == 0} {
+                        set existing_commit [string trim $existing_commit]
+
+                        # Test if current uncommitted working tree matches the existing base commit
+                        catch {exec git -C $sub_path add -A .}
+                        set diff_status [catch {exec git -C $sub_path diff --cached --quiet $existing_commit}]
+                        catch {exec git -C $sub_path reset HEAD}
+
+                        if {$diff_status == 0} {
+                            set can_reuse 1
+                        }
+                    }
+
+                    if {$can_reuse} {
+                        puts "Reusing existing submodule commit $existing_commit for '$sub_path' ..."
+                        lappend dirty_submodules [list $sub_path $base_sub_branch 0 $existing_commit $rel_sub_path]
+                    } else {
+                        puts "Submodule '$sub_path' is dirty. Creating temporary submodule commit ..."
+
+                        # Save starting HEAD of submodule
+                        catch {exec git -C $sub_path rev-parse --short HEAD} sub_head
+
+                        # Stage and commit inside submodule using step-specific branch tag
+                        catch {exec git -C $sub_path add -A .}
+                        if {[catch {exec git -C $sub_path commit -m "VBS Submodule Build: $build_branch"} err]} {
+                            puts "WARNING: Failed to commit submodule '$sub_path': $err"
+                        } else {
+                            catch {exec git -C $sub_path rev-parse --verify HEAD} new_sub_head
+                            set new_sub_head [string trim $new_sub_head]
+
+                            # Tag step-specific branch ONLY
+                            catch {exec git -C $sub_path branch -f $step_sub_branch}
+
+                            # Only tag base branch if this is the initial Pre-Synthesis run (base_stamp == build_branch)
+                            if {$base_stamp eq $build_branch} {
+                                catch {exec git -C $sub_path branch -f $base_sub_branch}
+                            }
+
+                            lappend dirty_submodules [list $sub_path $sub_head 1 $new_sub_head $rel_sub_path]
+                        }
+                    }
+                }
+            }
+        }
+    }
+    return $dirty_submodules
+}
+
+# Restore GIT state cleanly across parent and submodules on error or reset
+proc git_undo {old_branch level dirty_submodules} {
+    if {$level > 2} {
+        catch {exec git reset --soft HEAD^}
+    }
+    if {$level > 1} {
+        catch {exec git reset HEAD}
+    }
+    if {$level > 0 && $old_branch ne ""} {
+        catch {exec git checkout -q "${old_branch}"}
+    }
+
+    # Reset submodules back to starting HEAD while leaving uncommitted working copy intact
+    foreach item $dirty_submodules {
+        set sub_path [lindex $item 0]
+        set was_created [lindex $item 2]
+        if {$was_created && [file exists $sub_path]} {
+            catch {exec git -C $sub_path reset HEAD^}
+        }
+    }
+    return -code 1
+}
+
+# Create git branch with all uncommitted changes across parent and submodules
+proc git_stamp {build_branch} {
+    # Resolve top-level parent repository root
+    if {[catch {exec git rev-parse --show-toplevel} repo_root]} {
+        set repo_root "."
+    }
+
+    # Resolve starting branch, re-attach to branch at HEAD, or fall back to SHA
+    if {[catch {exec git symbolic-ref --short -q HEAD} curbranch]} {
+        if {[catch {exec git branch --points-at HEAD --format="%(refname:short)"} br_list] == 0 && [llength $br_list] > 0} {
+            set curbranch [lindex $br_list 0]
+        } else {
+            if {[catch {exec git rev-parse --short HEAD} curbranch]} {
+                puts "failed ($curbranch)."
+                return -code 1
+            }
+        }
+    }
 
     puts "Looking for changes and untracked files ..."
-    if {[catch {exec git status -s >&/dev/null} result] != 0} {
-        puts "failed ($result)."
-        return -code 1
-    }
-    if {[catch {exec git status -s | wc -l} result] != 0} {
-        puts "failed ($result)."
+
+    if {[catch {exec git status -s} result_status]} {
+        puts "failed ($result_status)."
         return -code 1
     }
 
-    if {$result} {
-        puts "$result changed/untracked files in working directory."
+    set lines [split [string trim $result_status] "\n"]
+    set num_changes 0
+    foreach line $lines {
+        if {[string trim $line] ne ""} {
+            incr num_changes
+        }
+    }
 
-        puts "Detaching from branch $curbranch ..."
-        if {[catch {exec git checkout --detach -q} result] != 0} {
+    if {$num_changes > 0} {
+        puts "$num_changes changed/untracked files or submodules in working directory."
+
+        # Prepare submodule commit SHAs
+        set dirty_submodules [git_stamp_submodules $build_branch $repo_root]
+
+        puts "Detaching parent from $curbranch ..."
+        if {[catch {exec git checkout --detach -q} result]} {
             puts "failed ($result)."
-            return [git_undo "${curbranch}" "" 0]
+            return [git_undo "${curbranch}" 0 $dirty_submodules]
         }
 
-        puts "Staging all workdir changes ..."
-        if {[catch {exec git add -A} result] != 0} {
+        puts "Staging all workdir changes (including updated submodule pointers) ..."
+        if {[catch {exec git add -A "${repo_root}"} result]} {
             puts "failed ($result)."
-            return [git_undo "${curbranch}" "" 1]
+            return [git_undo "${curbranch}" 1 $dirty_submodules]
+        }
+
+        # Stage submodule commit pointers after git checkout and git add -A
+        foreach item $dirty_submodules {
+            set sub_path [lindex $item 0]
+            set sub_sha [lindex $item 3]
+            set rel_sub_path [lindex $item 4]
+            if {$sub_sha ne "" && $rel_sub_path ne ""} {
+                if {[catch {exec git -C $repo_root update-index --add --cacheinfo 160000,$sub_sha,$rel_sub_path} upd_err]} {
+                    puts "WARNING: Failed to update index for '$rel_sub_path': $upd_err"
+                }
+            }
         }
 
         puts "Committing all workdir changes ..."
-        if {[catch {exec git commit -m "${build_branch}"} result] != 0} {
+        if {[catch {exec git commit -m "${build_branch}"} result]} {
             puts "failed ($result)."
-            return [git_undo "${curbranch}" "" 2]
+            return [git_undo "${curbranch}" 2 $dirty_submodules]
         }
 
-        puts "Creating new branch ${build_branch} from previous commit ..."
-        if {[catch {exec git branch "${build_branch}"} result] != 0} {
+        puts "Creating new branch ${build_branch} ..."
+        if {[catch {exec git branch -f "${build_branch}"} result]} {
             puts "failed ($result)."
-            return [git_undo "${curbranch}" "" 3]
+            return [git_undo "${curbranch}" 2 $dirty_submodules]
         }
 
-        if {[catch {exec git rev-parse --verify --short HEAD} result] != 0} {
+        if {[catch {exec git rev-parse --verify --short HEAD} result]} {
             puts "failed ($result)."
-            return [git_undo "${curbranch}" "${build_branch}" 4]
+            return [git_undo "${curbranch}" 2 $dirty_submodules]
         }
         set bcommit [string range $result 0 6]
         puts "Build commit is $result"
 
-        puts "Reset to previous branch $curbranch state ..."
-        if {[catch {exec git reset HEAD^} result] != 0} {
+        puts "Resetting parent to previous state ..."
+        if {[catch {exec git reset HEAD^} result]} {
+            puts "failed ($result)."
+            return [git_undo "${curbranch}" 2 $dirty_submodules]
+        }
+
+        puts "Restoring parent to $curbranch state ..."
+        if {[catch {exec git checkout -q "${curbranch}"} result]} {
             puts "failed ($result)."
             return -code 1
         }
 
-        puts "Point to previous branch $curbranch again ..."
-        if {[catch {exec git checkout -q "${curbranch}"} result] != 0} {
-            puts "failed ($result)."
-            return -code 1
+        # Reset submodule HEAD back to starting state so workspace remains dirty
+        foreach item $dirty_submodules {
+            set sub_path [lindex $item 0]
+            set was_created [lindex $item 2]
+            if {$was_created && [file exists $sub_path]} {
+                catch {exec git -C $sub_path reset HEAD^}
+            }
         }
 
         set bctype 2
     } else {
         puts "No working directory changes, skipping build commit."
 
-        if {[catch {exec git rev-parse --verify --short HEAD} result] != 0} {
+        if {[catch {exec git rev-parse --verify --short HEAD} result]} {
             puts "failed ($result)."
             return -code 1
         }

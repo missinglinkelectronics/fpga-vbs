@@ -68,7 +68,7 @@ if {[string equal $flv_name "."]} {
 }
 
 set dict_name [file rootname [file tail $dict_name]]
-set build_branch "build_${flv_name}${dict_name}_${bstamp}"
+set build_branch "vbs_${flv_name}${dict_name}_${bstamp}"
 
 set cur_dir [pwd]
 cd $base_dir

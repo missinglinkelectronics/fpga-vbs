@@ -95,7 +95,9 @@ if {$bctype != $bctype_pre} {
     }
 }
 
-if {[info exists remove_branch_ps]} {
+# Only remove the post-synth branch if the pre/post check succeeded cleanly!
+# If an error occurred (bctype == 3), preserve the branch so the diff can be inspected.
+if {[info exists remove_branch_ps] && $bctype != 3} {
     exec -ignorestderr git branch -D "${build_branch_ps}"
     unset remove_branch_ps
 }
@@ -105,7 +107,10 @@ cd $cur_dir
 switch $bctype {
     0 { set bcommit "" }
     3 {
-        set bcommit "ERROR"
+        # Keep $bcommit as returned by git_stamp if available, fallback to "ERROR" if empty
+        if {[string length $bcommit] == 0} {
+            set bcommit "ERROR"
+        }
 
         puts "ERROR: GIT failure in post-synthesis hook. See synthesis log\
                 for details. Continue build process ..."
