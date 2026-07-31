@@ -67,8 +67,14 @@ if {$git_err} {
     set bcommit 0
 }
 
-puts "Setting USR_ACCESSE2 to 0x${bcommit}${misc_nibble}"
-set_property BITSTREAM.CONFIG.USR_ACCESS ${bcommit}${misc_nibble} [current_design]
+set usr_acces_val [get_property BITSTREAM.CONFIG.USR_ACCESS [current_design]]
+# The Git stamp value is the default, do not overwrite user settings.
+if {![llength $usr_acces_val]} {
+    puts "Setting USR_ACCESSE2 to Git stamp '0x${bcommit}${misc_nibble}'"
+    set_property BITSTREAM.CONFIG.USR_ACCESS ${bcommit}${misc_nibble} [current_design]
+} else {
+    puts "USR_ACCESSE2: '${usr_acces_val}'"
+}
 
 ################################################################################
 
