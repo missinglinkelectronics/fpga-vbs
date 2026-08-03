@@ -288,19 +288,16 @@ while getopts "$OPTSTRING" opt; do
         fi
         ;;
     t)
-        # Resolves the TCL file path to an absolute path.
-        TCL_FILE_TMP="$(pwd)"
-        if cd "${OPTARG}"; then
-            TCL_FILE="$(pwd)"
-            cd "$TCL_FILE_TMP"
-        else
-            TCL_FILE="${OPTARG}"
-        fi
+        # Convert to absolute path if relative, and verify existence
+        case "${OPTARG}" in
+            /*) TCL_FILE="${OPTARG}" ;;
+            *)  TCL_FILE="$(pwd)/${OPTARG}" ;;
+        esac
 
         if [ -f "${TCL_FILE}" ]; then
             TCL_ARGS="tcl_file='${TCL_FILE}' ${TCL_ARGS}"
         else
-            printf "Did not find TCL file '%s'\n" "${TCL_FILE}"
+            printf "Did not find TCL file '%s'\n" "${OPTARG}"
             printf "Exiting...\n"; exit 1
         fi
         ;;
