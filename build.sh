@@ -535,6 +535,11 @@ TCL_ARGS="config_dict_name='${CONFIG_DICT_NAME}' ${TCL_ARGS}"
 
 get_vcsver()
 {
+    # Check if Git integration is explicitly disabled via environment variable
+    if [ "${VBS_DISABLE_GIT}" = "1" ]; then
+        return 0
+    fi
+
     # Executes git rev-parse, capturing the hash and checking its success.
     head_hash=$(git rev-parse --verify --short HEAD 2>/dev/null)
 
@@ -629,6 +634,9 @@ if ! cd "$PRJ_DIR"; then
 fi
 
 printf "Using %s as the build directory\n" "$PRJ_DIR"
+if [ "${VBS_DISABLE_GIT}" = "1" ]; then
+    printf "INFO: VBS Git integration disabled via environment variable (VBS_DISABLE_GIT=${VBS_DISABLE_GIT})\n"
+fi
 
 # Executes Vivado in batch mode, sourcing the main TCL build script.
 VIVADO_START_TIME=$(date +%s)

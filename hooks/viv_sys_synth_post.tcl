@@ -126,7 +126,8 @@ set result_base "${project_name}"
 if {[string length $bstamp_pre] > 0} {
     append result_base "_${bstamp_pre}"
 }
-if {[string length $bcommit] > 0} {
+# Only append Git commit info if Git is ACTIVE (bctype > 0)
+if {$bctype > 0 && [string length $bcommit] > 0} {
     append result_base "_g${bcommit}-${bctype}"
 }
 

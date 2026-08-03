@@ -390,6 +390,8 @@ Status code and description:
 * 2 (Repository Dirty): Uncommitted changes exist in the local repository. The build system automatically created a temporary Git commit/branch (e.g., build_<flavor>_<timestamp>) containing these changes before starting synthesis. The generated hash reflects this temporary, traceable state.
 * 3 (Git Command Failure): A Git command failed during the process (e.g., failed to create a temporary commit or check diffs). This flags a severe issue.
 
+VBS Git integration may be disabled via environment variable `VBS_DISABLE_GIT` e.g. `export VBS_DISABLE_GIT=1`.
+
 ## add_flavor.sh examples
 Following two examples show a single- and multi-flavor project created by
 `add_flavor.sh`.

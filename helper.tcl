@@ -153,6 +153,12 @@ proc time_stamp {} {
 }
 
 proc git_exists {} {
+    # Check if Git integration is explicitly disabled via environment variable
+    if {[info exists ::env(VBS_DISABLE_GIT)] && $::env(VBS_DISABLE_GIT) eq "1"} {
+        puts "INFO: Git integration is disabled via VBS_DISABLE_GIT"
+        return -code 2
+    }
+
     if {[catch {exec git status -s 2>@1} result options]} {
         set ec [dict get $options -errorcode]
         if {[regexp {^POSIX ENOENT} $ec] == 1} {
