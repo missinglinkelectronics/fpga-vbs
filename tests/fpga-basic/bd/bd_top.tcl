@@ -64,7 +64,7 @@ set ::vbs::bd_top::cfg_dict [dict create]
 
 # xilinx.com:ip:versal_cips
 dict set ::vbs::bd_top::cfg_dict versal_cips CONFIG [list \
-	CONFIG.DEBUG_MODE {JTAG} \
+	CONFIG.PRESET {None} \
 ]
 dict set ::vbs::bd_top::cfg_dict versal_cips BD_RULE_CONFIG [list \
 	board_preset {Yes} \

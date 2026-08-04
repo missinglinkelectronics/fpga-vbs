@@ -90,3 +90,9 @@ USER_HOOKS {
         "tcl/synth_post1.tcl"
     }
 }
+
+# Global TCL variables
+TCL_GLOBALS {
+    var0 1
+    var1 "variable1"
+}

@@ -1,5 +1,6 @@
 variables:
   XILINX_LOCAL_USER_DATA: "no"
+  LOG_PARSER_SCRIPT: "tests/scripts/vivado_log_parser.py"
 
 stages:
   - test
@@ -26,3 +27,95 @@ test_axi4-dummy-master_packaging:
         EXTRA_ARGS: "-i -c ipxact.dict"
   script:
     - cd tests/axi4-dummy-master && ${ENV_SCRIPT} ../../build.sh -e package ${EXTRA_ARGS}
+
+test_fpga-basic_bitstream:
+  stage: test
+  timeout: 1h
+  parallel:
+    matrix:
+      - ENV_SCRIPT: vitis-v2023.2.sh
+      - ENV_SCRIPT: vitis-v2024.2.sh
+      - ENV_SCRIPT: vitis-v2025.2.sh
+      - ENV_SCRIPT: vitis-v2026.1.sh
+  artifacts:
+    when: always
+    reports:
+      codequality: issue_report.json
+    paths:
+      - tests/fpga-basic/build/**/*.log
+      - issue_report.json
+    expire_in: 5 days
+  script:
+    # Run bitstream generation
+    - >-
+      cd tests/fpga-basic && ${ENV_SCRIPT} ../../build.sh
+      -i
+      -e bit
+      -t tcl/report.tcl
+      -g BUILD_SH_GENERIC0=1
+      -g BUILD_SH_GENERIC1="TRUE"
+      -v BUILD_SH_DEFINE0=1
+      -v BUILD_SH_DEFINE1="TRUE"
+    - cd ../..
+
+    # Locate generated Vivado log file
+    - LOG_FILE=$(find tests/fpga-basic/build -name "vivado.log" | head -n 1)
+    - 'test -f "$LOG_FILE" || (echo "ERROR: vivado.log not found in tests/fpga-basic/build!" && false)'
+
+    # Parse log and do assertions
+    - >-
+      python3 ${LOG_PARSER_SCRIPT} "$LOG_FILE" -o issue_report.json
+      --assert-info "Running hook script: synth_pre.tcl"
+      --assert-info "Running hook script: synth_post0.tcl"
+      --assert-info "Running hook script: synth_post1.tcl"
+      --assert-info "GENERICS: EXAMPLE_GENERIC1=FALSE EXAMPLE_GENERIC0=TRUE BUILD_SH_GENERIC1=TRUE BUILD_SH_GENERIC0=1"
+      --assert-info "VERILOG_DEFINE: EXAMPLE_DEFINE1=TRUE EXAMPLE_DEFINE0=FALSE BUILD_SH_DEFINE1=TRUE BUILD_SH_DEFINE0=1"
+      --assert-info "VERILOG_SIM_DEFINE: EXAMPLE_SIM_DEFINE0=0 EXAMPLE_SIM_DEFINE1=1"
+      --assert-info "timing.xdc used in synth=1, impl=0"
+      --assert-info "axi4_dummy_master.vhd library=my_lib, filetype=VHDL 2019"
+
+test_fpga-basic_incremental:
+  stage: test
+  timeout: 1h
+  parallel:
+    matrix:
+      - ENV_SCRIPT: vitis-v2023.2.sh
+      - ENV_SCRIPT: vitis-v2024.2.sh
+      - ENV_SCRIPT: vitis-v2025.2.sh
+      - ENV_SCRIPT: vitis-v2026.1.sh
+  variables:
+    REASON: "Verifies incremental build step continuation (-s and -e) with custom output directory (-o)."
+    CUSTOM_OUT_DIR: "tests/fpga-basic/build/custom_build_dir"
+  artifacts:
+    when: always
+    paths:
+      - tests/fpga-basic/build/custom_build_dir/**/*.log
+    expire_in: 5 days
+  script:
+    - 'echo "Running test: $REASON"'
+    - rm -rf ${CUSTOM_OUT_DIR}
+
+    # Step 1: Create Project Only (-e prj) into custom output folder
+    - 'echo "=== Step 1: prj ==="'
+    - ${ENV_SCRIPT} /bin/sh build.sh -i -b tests/fpga-basic -e prj -o custom_build_dir
+
+    # Locate project file created in step 1
+    - XPR_FILE=$(find ${CUSTOM_OUT_DIR} -name "*.xpr" | head -n 1)
+    - 'test -f "$XPR_FILE" || (echo "ERROR: .xpr file not found in ${CUSTOM_OUT_DIR}!" && exit 1)'
+    - 'echo "Found generated project: $XPR_FILE"'
+
+    # Step 2: Out-Of-Context Synthesis (-s prj -e synth_ooc)
+    - 'echo "=== Step 2: synth_ooc ==="'
+    - ${ENV_SCRIPT} /bin/sh build.sh -i -b tests/fpga-basic -s prj -e synth_ooc -x "${XPR_FILE}"
+
+    # Step 3: Top-level Synthesis (-s synth_ooc -e synth)
+    - 'echo "=== Step 3: synth ==="'
+    - ${ENV_SCRIPT} /bin/sh build.sh -i -b tests/fpga-basic -s synth_ooc -e synth -x "${XPR_FILE}"
+
+    # Step 4: Implementation (-s synth -e impl)
+    - 'echo "=== Step 4: impl ==="'
+    - ${ENV_SCRIPT} /bin/sh build.sh -i -b tests/fpga-basic -s synth -e impl -x "${XPR_FILE}"
+
+    # Step 5: Bitstream / Device Image Generation (-s impl -e bit)
+    - 'echo "=== Step 5: bit ==="'
+    - ${ENV_SCRIPT} /bin/sh build.sh -i -b tests/fpga-basic -s impl -e bit -x "${XPR_FILE}"
