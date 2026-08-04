@@ -184,3 +184,76 @@ test_simulation:
     - >-
       python3 ${LOG_PARSER_SCRIPT} "$LOG_FILE" -o issue_report.json
       --assert-info "SIMULATION PASSED"
+
+test_add-flavor_subfolders:
+  stage: test
+  timeout: 10m
+  script:
+    - 'echo "=== Step 1: Generating flavor0 and flavor1 subfolders ==="'
+    - ./add_flavor.sh -p project.cfg -b tests/add-flavor flavor0
+    - ./add_flavor.sh -p project.cfg -b tests/add-flavor flavor1
+
+    - 'echo "=== Step 2: Validating directory tree and generated files for flavor0 ==="'
+    - test -f tests/add-flavor/flavor0/config.dict
+    - test -f tests/add-flavor/flavor0/constr/misc.xdc
+    - test -f tests/add-flavor/flavor0/constr/pinout.xdc
+    - test -f tests/add-flavor/flavor0/constr/timing.xdc
+    - test -f tests/add-flavor/flavor0/filelists/constr.f
+    - test -f tests/add-flavor/flavor0/filelists/hdl.f
+    - test -f tests/add-flavor/flavor0/filelists/hdl_include.f
+    - test -f tests/add-flavor/flavor0/filelists/ip.f
+    - test -f tests/add-flavor/flavor0/filelists/ip_include.f
+    - test -f tests/add-flavor/flavor0/filelists/ip_tcl.f
+    - test -f tests/add-flavor/flavor0/filelists/sim.f
+    - test -f tests/add-flavor/flavor0/filelists/sim_include.f
+    - test -f tests/add-flavor/flavor0/hdl/fpga_top.v
+    - test -d tests/add-flavor/flavor0/ip
+    - test -d tests/add-flavor/flavor0/sim
+
+    - 'echo "=== Step 3: Validating directory tree and generated files for flavor1 ==="'
+    - test -f tests/add-flavor/flavor1/config.dict
+    - test -f tests/add-flavor/flavor1/constr/misc.xdc
+    - test -f tests/add-flavor/flavor1/constr/pinout.xdc
+    - test -f tests/add-flavor/flavor1/constr/timing.xdc
+    - test -f tests/add-flavor/flavor1/filelists/constr.f
+    - test -f tests/add-flavor/flavor1/filelists/hdl.f
+    - test -f tests/add-flavor/flavor1/filelists/hdl_include.f
+    - test -f tests/add-flavor/flavor1/filelists/ip.f
+    - test -f tests/add-flavor/flavor1/filelists/ip_include.f
+    - test -f tests/add-flavor/flavor1/filelists/ip_tcl.f
+    - test -f tests/add-flavor/flavor1/filelists/sim.f
+    - test -f tests/add-flavor/flavor1/filelists/sim_include.f
+    - test -f tests/add-flavor/flavor1/hdl/fpga_top.v
+    - test -d tests/add-flavor/flavor1/ip
+    - test -d tests/add-flavor/flavor1/sim
+
+    - 'echo "=== Step 4: Validating project creation via build.sh ==="'
+    - vitis-v2026.1.sh /bin/sh build.sh -b tests/add-flavor/flavor0 -e prj
+    - vitis-v2026.1.sh /bin/sh build.sh -b tests/add-flavor/flavor1 -e prj
+
+test_add-flavor_flat:
+  stage: test
+  timeout: 10m
+  script:
+    - 'echo "=== Step 1: Generating flat flavor ==="'
+    - ./add_flavor.sh -p project.cfg -b tests/add-flavor
+
+    - 'echo "=== Step 2: Validating flat directory tree and generated files ==="'
+    - test -f tests/add-flavor/config.dict
+    - test -f tests/add-flavor/constr/misc.xdc
+    - test -f tests/add-flavor/constr/pinout.xdc
+    - test -f tests/add-flavor/constr/timing.xdc
+    - test -f tests/add-flavor/filelists/constr.f
+    - test -f tests/add-flavor/filelists/hdl.f
+    - test -f tests/add-flavor/filelists/hdl_include.f
+    - test -f tests/add-flavor/filelists/ip.f
+    - test -f tests/add-flavor/filelists/ip_include.f
+    - test -f tests/add-flavor/filelists/ip_tcl.f
+    - test -f tests/add-flavor/filelists/sim.f
+    - test -f tests/add-flavor/filelists/sim_include.f
+    - test -f tests/add-flavor/hdl/fpga_top.v
+    - test -d tests/add-flavor/ip
+    - test -d tests/add-flavor/sim
+
+    - 'echo "=== Step 3: Validating project creation via build.sh ==="'
+    - vitis-v2026.1.sh /bin/sh build.sh -b tests/add-flavor -e prj

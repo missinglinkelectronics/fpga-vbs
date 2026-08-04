@@ -7,7 +7,7 @@ CDF_VER "1.4.3"
 
 ## Project parameters
 # Override project.cfg project name
-PRJ_NAME "prj0"
+PRJ_NAME "<PRJ_NAME>"
 # Mandatory
 MDT_PARAMS {
     # AMD Vivado TM toolchain version string e.g. 2017.4
@@ -27,30 +27,31 @@ MDT_PARAMS {
 # mandatory.
 CONSTR_SET {
     filelists/constr.f constr
-    filelists/constr_synth_only.f {
-        DIR                    "constr"
-        USED_IN_IMPLEMENTATION "0"
-        <FILE_PROP_NAME>        "<FILE_PROPERTY_VALUE>"
+#    filelists/constr_synth_only.f {
+#        DIR                    "constr"
+#        USED_IN_IMPLEMENTATION "0"
+#        <FILE_PROP_NAME>        "<FILE_PROPERTY_VALUE>"
+#    }
 }
 
 SRC_SET {
     filelists/hdl.f hdl
     filelists/ip.f ip
-    filelists/hdl_my_lib_2019.f {
-        DIR               "hdl"
-        LIBRARY           "my_lib"
-        FILE_TYPE         "VHDL 2019"
-        <FILE_PROP_NAME>  "<FILE_PROPERTY_VALUE>"
-    }
+#    filelists/hdl_my_lib_2019.f {
+#        DIR               "hdl"
+#        LIBRARY           "my_lib"
+#        FILE_TYPE         "VHDL 2019"
+#        <FILE_PROP_NAME>  "<FILE_PROPERTY_VALUE>"
+#    }
 }
 SIM_SET {
     filelists/sim.f sim
-    filelists/sim_my_lib_2019.f {
-        DIR               "sim"
-        LIBRARY           "my_lib"
-        FILE_TYPE         "VHDL 2019"
-        <FILE_PROP_NAME>  "<FILE_PROPERTY_VALUE>"
-    }
+#    filelists/sim_my_lib_2019.f {
+#        DIR               "sim"
+#        LIBRARY           "my_lib"
+#        FILE_TYPE         "VHDL 2019"
+#        <FILE_PROP_NAME>  "<FILE_PROPERTY_VALUE>"
+#    }
 }
 INCL_SET {
     filelists/hdl_include.f hdl

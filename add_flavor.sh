@@ -3,7 +3,7 @@
 #
 ################################################################################
 ##
-## Copyright 2017-2019 Missing Link Electronics, Inc.
+## Copyright 2017-2026 Missing Link Electronics, Inc.
 ##
 ## Licensed under the Apache License, Version 2.0 (the "License");
 ## you may not use this file except in compliance with the License.
@@ -31,6 +31,7 @@
 ##
 ##  Options:
 ##      flavor_name      : Sub-project to be added with name <flavor_name>
+##      -b [base_dir]    : Target base directory for flavor creation
 ##      -p [prj_config]  : Project configuration file relative to base directory
 ##      -h, -?           : Print usage
 ##
@@ -42,16 +43,21 @@
 usage () {
     echo "Usage: add_flavor.sh [flavor_name] [options]
     flavor_name     : Sub-project to be added with name <flavor_name>
+    -b [base_dir]   : Target base directory for flavor creation
     -p [prj_config] : Project configuration file relative to base directory
     -h, -?          : Print usage
 "
 }
 
 PRJ_CONF="project.cfg"
+TARGET_BASE_DIR=""
 
 OPTIND=1
-while getopts "p:h?" opt; do
+while getopts "b:p:h?" opt; do
     case "${opt}" in
+    b)
+        TARGET_BASE_DIR="${OPTARG}"
+        ;;
     p)
         PRJ_CONF="${OPTARG}"
         ;;
@@ -76,26 +82,40 @@ fi
 ## Define paths
 
 SCRIPT_DIR="$(dirname "$(readlink -e "$0")")"
-BASE_DIR="$(dirname "${SCRIPT_DIR}")"
+
+if [ -n "${TARGET_BASE_DIR}" ]; then
+    BASE_DIR="$(readlink -f "${TARGET_BASE_DIR}")"
+else
+    # Default to the current working directory where the script was invoked
+    BASE_DIR="$(pwd)"
+fi
+
 TEMPLATE_DIR="${SCRIPT_DIR}/templates"
 PRJ_CFG="${BASE_DIR}/${PRJ_CONF}"
-# Target project directory
-CONSTR="${BASE_DIR}/${FLAVOR}/constr"
-FILELISTS="${BASE_DIR}/${FLAVOR}/filelists"
-HDL="${BASE_DIR}/${FLAVOR}/hdl"
-IP="${BASE_DIR}/${FLAVOR}/ip"
-SIM="${BASE_DIR}/${FLAVOR}/sim"
+
+# Target project directory resolution
+if [ "${FLAVOR}" = "." ]; then
+    FLAVOR_TARGET_DIR="${BASE_DIR}"
+else
+    FLAVOR_TARGET_DIR="${BASE_DIR}/${FLAVOR}"
+fi
+
+CONSTR="${FLAVOR_TARGET_DIR}/constr"
+FILELISTS="${FLAVOR_TARGET_DIR}/filelists"
+HDL="${FLAVOR_TARGET_DIR}/hdl"
+IP="${FLAVOR_TARGET_DIR}/ip"
+SIM="${FLAVOR_TARGET_DIR}/sim"
 
 ################################################################################
 ## Parameter substitution
 
-# Settings will substitue <PARAM> in copied files
+# Settings will substitute <PARAM> in copied files
 if [ -f "${PRJ_CFG}" ]; then
     echo "Sourcing project configuration file '${PRJ_CFG}'"
     source "${PRJ_CFG}"
 else
     FPGA_TOP="fpga_top"
-    YEAR=`date +%Y`
+    YEAR=$(date +%Y)
 fi
 
 declare -A SUBSTITUTES_MAP
@@ -114,8 +134,8 @@ SUBSTITUTES_MAP=(
 )
 
 if [ -f "${PRJ_CFG}" ]; then
-    # Check that all values are set by the user
-    for KEY in ${!SUBSTITUTES_MAP[@]} ; do
+    # Check that all required values are set by the user
+    for KEY in "${!SUBSTITUTES_MAP[@]}" ; do
         VALUE=${SUBSTITUTES_MAP[$KEY]}
 
         if [ -z "${VALUE}" ]; then
@@ -131,16 +151,18 @@ fi
 ################################################################################
 ## Create flavor template folders
 
-mkdir "${BASE_DIR}/${FLAVOR}" >/dev/null 2>&1
+# Check if target directories already exist to prevent accidental overwrites
+if [ -d "${CONSTR}" ] || [ -d "${FILELISTS}" ] || [ -d "${HDL}" ] || [ -d "${IP}" ] || [ -d "${SIM}" ]; then
+    echo "ERROR: Flavor already exists in ${FLAVOR_TARGET_DIR}"; exit 1
+fi
 
-# If already existent do not overwrite
-mkdir "${CONSTR}" "${FILELISTS}" "${HDL}" "${IP}" "${SIM}" >/dev/null 2>&1
+mkdir -p "${FLAVOR_TARGET_DIR}" "${CONSTR}" "${FILELISTS}" "${HDL}" "${IP}" "${SIM}"
 if [ $? -ne 0 ]; then
-    echo "ERROR: Flavor does already exist"; exit 1
+    echo "ERROR: Could not create directories in ${FLAVOR_TARGET_DIR}"; exit 1
 fi
 
 ################################################################################
-## Copy template files and substitude <PARAM> strings in copied files
+## Copy template files and substitute <PARAM> strings in copied files
 
 copy_sub ()
 {
@@ -155,8 +177,8 @@ copy_sub ()
         if [ $? -ne 0 ]; then
             echo "ERROR: Could not copy file ${SFILE}"; exit 1
         else
-            # Substitude <PARAM> strings in copied file
-            for KEY in ${!SUBSTITUTES_MAP[@]} ; do
+            # Substitute <PARAM> strings in copied file
+            for KEY in "${!SUBSTITUTES_MAP[@]}" ; do
                 VALUE=${SUBSTITUTES_MAP[$KEY]}
                 find "${TFILE}" -type f -exec sed -i "s/${KEY}/${VALUE}/g" {} \;
             done
@@ -177,4 +199,4 @@ mv "${HDL}/fpga_top.v" "${HDL}/${SUBSTITUTES_MAP[<FPGA_TOP>]}.v" >/dev/null 2>&1
 
 ################################################################################
 
-echo "Done. Files created in $(dirname "${FILELISTS}")"
+echo "Done. Files created in ${FLAVOR_TARGET_DIR}"
