@@ -1,19 +1,20 @@
+-- SPDX-License-Identifier: Apache-2.0
+--
 -------------------------------------------------------------------------------
 --
--- Copyright Missing Link Electronics Inc. (C) 2026
--- ALL RIGHTS RESERVED/UNPUBLISHED WORK
+-- Copyright 2026 Missing Link Electronics, Inc.
 --
--- This software shall not be reproduced without the express
--- written permission of Missing Link Electronics, Inc.
+-- Licensed under the Apache License, Version 2.0 (the "License");
+-- you may not use this file except in compliance with the License.
+-- You may obtain a copy of the License at
 --
---      Missing Link Electronics, Inc.
---      2880 Zanker Road, Suite 203
---      San Jose, CA 95134
+--     http://www.apache.org/licenses/LICENSE-2.0
 --
---      https://www.missinglinkelectronics.com
---
--- Licensed in accordance to your Proof-of-License
--- and https://www.missinglinkelectronics.com/US-license
+-- Unless required by applicable law or agreed to in writing, software
+-- distributed under the License is distributed on an "AS IS" BASIS,
+-- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+-- See the License for the specific language governing permissions and
+-- limitations under the License.
 --
 -------------------------------------------------------------------------------
 --
@@ -281,4 +282,3 @@ m_axi_arvalid_out <= '0';
 m_axi_rready_out <= '1';
 
 end architecture;
-

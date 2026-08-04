@@ -1,23 +1,20 @@
+# SPDX-License-Identifier: Apache-2.0
+#
 ################################################################################
 ##
-##  Copyright Missing Link Electronics, Inc. (C) 2021
-##  ALL RIGHTS RESERVED/UNPUBLISHED WORK
+## Copyright 2026 Missing Link Electronics, Inc.
 ##
-##  This software shall not be reproduced without the express
-##  written permission of Missing Link Electronics, Inc.
+## Licensed under the Apache License, Version 2.0 (the "License");
+## you may not use this file except in compliance with the License.
+## You may obtain a copy of the License at
 ##
-##      Missing Link Electronics, Inc.
-##      2880 Zanker Road, Suite 203
-##      San Jose, CA 95134
+##     http://www.apache.org/licenses/LICENSE-2.0
 ##
-##      http://www.missinglinkelectronics.com
-##
-## Licensed in accordance to your Proof-of-License
-## and https://www.missinglinkelectronics.com/US-license
-##
-################################################################################
-##
-##  File Name: : component.tcl
+## Unless required by applicable law or agreed to in writing, software
+## distributed under the License is distributed on an "AS IS" BASIS,
+## WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+## See the License for the specific language governing permissions and
+## limitations under the License.
 ##
 ################################################################################
 ##
@@ -139,4 +136,3 @@ set_property enablement_dependency "\$AXI4_INTERFACE == 1" \
         [ipx::get_bus_interfaces "M_AXIL" -of_objects [ipx::current_core]]
 set_property enablement_dependency "\$AXI4_INTERFACE == 2" \
         [ipx::get_bus_interfaces "M_AXIF" -of_objects [ipx::current_core]]
-
