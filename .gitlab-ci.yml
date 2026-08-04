@@ -119,3 +119,68 @@ test_fpga-basic_incremental:
     # Step 5: Bitstream / Device Image Generation (-s impl -e bit)
     - 'echo "=== Step 5: bit ==="'
     - ${ENV_SCRIPT} /bin/sh build.sh -i -b tests/fpga-basic -s impl -e bit -x "${XPR_FILE}"
+
+test_simulation_scripts:
+  stage: test
+  timeout: 1h
+  parallel:
+    matrix:
+      - ENV_SCRIPT: vitis-v2023.2.sh
+      - ENV_SCRIPT: vitis-v2024.2.sh
+      - ENV_SCRIPT: vitis-v2025.2.sh
+      - ENV_SCRIPT: vitis-v2026.1.sh
+  artifacts:
+    when: always
+    reports:
+      codequality: issue_report.json
+    paths:
+      - tests/simulation/build/**/*.log
+      - issue_report.json
+    expire_in: 5 days
+  script:
+    # Generate simulation scripts
+    - ${ENV_SCRIPT} /bin/sh build.sh -i -b tests/simulation -e sim_prep
+    - SIM_EXE=$(find tests/simulation/build -name "run.sh" | head -n 1)
+    - 'test -f "$SIM_EXE" || (echo "ERROR: run.sh not found in tests/simulation/build!" && false)'
+
+    # Run simulation script
+    - pushd $(dirname ${SIM_EXE}) && ${ENV_SCRIPT} ./run.sh && popd
+
+    # Locate generated Vivado log file
+    - LOG_FILE=$(find tests/simulation/build -name "simulate.log" | head -n 1)
+    - 'test -f "$LOG_FILE" || (echo "ERROR: simulate.log not found in tests/simulation/build!" && false)'
+
+    # Parse log and do assertions
+    - >-
+      python3 ${LOG_PARSER_SCRIPT} "$LOG_FILE" -o issue_report.json
+      --assert-info "SIMULATION PASSED"
+
+test_simulation:
+  stage: test
+  timeout: 1h
+  parallel:
+    matrix:
+      - ENV_SCRIPT: vitis-v2023.2.sh
+      - ENV_SCRIPT: vitis-v2024.2.sh
+      - ENV_SCRIPT: vitis-v2025.2.sh
+      - ENV_SCRIPT: vitis-v2026.1.sh
+  artifacts:
+    when: always
+    reports:
+      codequality: issue_report.json
+    paths:
+      - tests/simulation/build/**/*.log
+      - issue_report.json
+    expire_in: 5 days
+  script:
+    # Run simulation
+    - ${ENV_SCRIPT} /bin/sh build.sh -i -b tests/simulation -e sim
+
+    # Locate generated Vivado log file
+    - LOG_FILE=$(find tests/simulation/build -name "vivado.log" | head -n 1)
+    - 'test -f "$LOG_FILE" || (echo "ERROR: vivado.log not found in tests/simulation/build!" && false)'
+
+    # Parse log and do assertions
+    - >-
+      python3 ${LOG_PARSER_SCRIPT} "$LOG_FILE" -o issue_report.json
+      --assert-info "SIMULATION PASSED"

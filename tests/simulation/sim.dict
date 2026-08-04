@@ -1,0 +1,37 @@
+
+CDF_VER "1.4.3"
+
+PRJ_NAME "sim-test"
+MDT_PARAMS {
+    req_vivado_vers "2026.1"
+    target_language "Verilog"
+    default_lib "xil_defaultlib"
+    part "xcvm1802-vsva2197-2MP-e-S"
+}
+
+SRC_SET {
+    filelists/hdl.f ""
+}
+
+SIM_SET {
+    filelists/tb.f ""
+}
+
+VERILOG_OPTIONS {
+    SIM_DEFINES {
+        CLOCK_PERIOD_PS 4
+    }
+}
+
+OPT_PARAMS {
+    hdl_top_module_name "dut"
+}
+
+SIM_PARAMS {
+    sim_top_module_name "tb_top"
+    sim_time "5000ns"
+    sim_log_all "true"
+    sim_wave_do "wave.do"
+    simulator_language "Verilog"
+    target_simulator "XSim"
+}
