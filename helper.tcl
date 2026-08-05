@@ -159,7 +159,7 @@ proc git_exists {} {
         return -code 2
     }
 
-    if {[catch {exec git status -s 2>@1} result options]} {
+    if {[catch {exec git status -s -- :/ 2>@1} result options]} {
         set ec [dict get $options -errorcode]
         if {[regexp {^POSIX ENOENT} $ec] == 1} {
             # assume no git executable found
@@ -311,7 +311,7 @@ proc git_stamp {build_branch} {
 
     puts "INFO: \[VBS 21] Looking for changes and untracked files ..."
 
-    if {[catch {exec git status -s} result_status]} {
+    if {[catch {exec git status -s -- :/} result_status]} {
         puts "ERROR: \[VBS 21] Git status failed ($result_status)."
         return -code 1
     }

@@ -544,8 +544,9 @@ get_vcsver()
     if [ $? -eq 0 ] && [ -n "$head_hash" ]; then
         # Prints the Git hash prefixed with 'g'.
         printf 'g%s' "$head_hash"
-        # Checks for uncommitted changes to append the '-dirty' flag.
-        if [ -n "$(git diff-index --name-only HEAD | head -n 1)" ]; then
+
+        # Checks for uncommitted changes AND untracked files repo-wide (using pathspec :/).
+        if [ -n "$(git status --porcelain :/ 2>/dev/null | head -n 1)" ]; then
             printf '%s' "-dirty"
         fi
     fi
