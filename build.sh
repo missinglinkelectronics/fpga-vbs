@@ -3,7 +3,7 @@
 #
 ################################################################################
 ##
-## Copyright 2017-2023 Missing Link Electronics, Inc.
+## Copyright 2017-2026 Missing Link Electronics, Inc.
 ##
 ## Licensed under the Apache License, Version 2.0 (the "License");
 ## you may not use this file except in compliance with the License.
@@ -101,7 +101,7 @@ if [ -n "$BASE_DIR_ARG" ]; then
         BASE_DIR="$(pwd)"
         cd "$BASE_DIR_TMP"
     else
-        printf "Error: Cannot resolve base directory '%s'\n" "$BASE_DIR_ARG"
+        printf "ERROR: [VBS 10] Cannot resolve base directory '%s'\n" "$BASE_DIR_ARG"
         exit 1
     fi
 fi
@@ -116,7 +116,7 @@ VALID_STEPS="prj exec_tcl sim_prep sim package synth_ooc synth impl bit"
 # Saves CWD before temporary directory change.
 CWD_SAVE="$(pwd)"
 if ! cd "${BASE_DIR}"; then
-    printf "Error: Cannot CD to BASE_DIR %s\n" "${BASE_DIR}"
+    printf "ERROR: [VBS 10] Cannot CD to BASE_DIR %s\n" "${BASE_DIR}"
     exit 1
 fi
 
@@ -126,8 +126,8 @@ FLAVOR_LIST="$(find . -maxdepth 2 -name "*.dict" -type f 2>/dev/null |
 cd "$CWD_SAVE"
 
 if [ -z "${FLAVOR_LIST}" ]; then
-    printf "Use add_flavor.sh to initialize a project template\n"
-    printf "Exiting...\n"; exit 1
+    printf "ERROR: [VBS 10] Use add_flavor.sh to initialize a project template\n"
+    exit 1
 fi
 
 # If only a root-level .dict file exists, runs in No-Flavor mode.
@@ -172,7 +172,7 @@ while getopts "$OPTSTRING" opt; do
             BUILD_DIR="$(pwd)"
             cd "$BUILD_DIR_TMP"
         else
-            printf "Error: Cannot resolve build directory '%s'\n" "${OPTARG}"
+            printf "ERROR: [VBS 10] Cannot resolve build directory '%s'\n" "${OPTARG}"
             exit 1
         fi
         ;;
@@ -191,7 +191,7 @@ while getopts "$OPTSTRING" opt; do
         if [ -d "${VIVADO_XPR_PATH}" ]; then
             # Argument is a directory. Find the .xpr file inside it.
             if ! cd "${VIVADO_XPR_PATH}"; then
-                printf "Error: Cannot resolve project directory '%s'\n" "${VIVADO_XPR_PATH}"
+                printf "ERROR: [VBS 10] Cannot resolve project directory '%s'\n" "${VIVADO_XPR_PATH}"
                 exit 1
             fi
             VIVADO_XPR_DIR_ABS="$(pwd)"
@@ -200,11 +200,11 @@ while getopts "$OPTSTRING" opt; do
             # Selects the first .xpr file.
             XPR_NAMES=$(find "${VIVADO_XPR_DIR_ABS}" -maxdepth 1 -name "*.xpr" 2>/dev/null)
             if [ -z "${XPR_NAMES}" ]; then
-                printf "Did not find Vivado Project in folder '%s/'\n" "${VIVADO_XPR_DIR_ABS}"
-                printf "Exiting...\n"; exit 1
+                printf "ERROR: [VBS 10] Did not find Vivado Project in folder '%s/'\n" "${VIVADO_XPR_DIR_ABS}"
+                exit 1
             fi
             VIVADO_XPR="$(printf "%s" "${XPR_NAMES}" | head -n 1)"
-            printf "Retrieving Vivado Project '%s'...\n" "${VIVADO_XPR}"
+            printf "INFO: [VBS 10] Retrieving Vivado Project '%s'...\n" "${VIVADO_XPR}"
 
         elif [ -f "${VIVADO_XPR_PATH}" ]; then
             # Argument is a file. Resolve its parent directory's path.
@@ -212,7 +212,7 @@ while getopts "$OPTSTRING" opt; do
             XPR_DIR_NAME=$(dirname "${VIVADO_XPR_PATH}")
 
             if ! cd "${XPR_DIR_NAME}"; then
-                 printf "Error: Cannot resolve project file path '%s'\n" "${XPR_DIR_NAME}"
+                 printf "ERROR: [VBS 10] Cannot resolve project file path '%s'\n" "${XPR_DIR_NAME}"
                  exit 1
             fi
             XPR_DIR_ABS="$(pwd)"
@@ -221,11 +221,11 @@ while getopts "$OPTSTRING" opt; do
             VIVADO_XPR="${XPR_DIR_ABS}/${XPR_FILE_NAME}"
 
             if ! printf "%s" "${VIVADO_XPR}" | grep -q '\.xpr$'; then
-                printf "Argument is no Vivado Project '%s'\n" "${VIVADO_XPR}"
-                printf "Exiting...\n"; exit 1
+                printf "ERROR: [VBS 10] Argument is no Vivado Project '%s'\n" "${VIVADO_XPR}"
+                exit 1
             fi
         else
-            printf "Error: Project path '%s' is not a valid file or directory\n" "${OPTARG}"
+            printf "ERROR: [VBS 10] Project path '%s' is not a valid file or directory\n" "${OPTARG}"
             exit 1
         fi
 
@@ -244,26 +244,26 @@ while getopts "$OPTSTRING" opt; do
         if [ "$NUM_ARGS" -eq 2 ]; then
             if ! printf "%s" "$ORIG_ARGS" | grep -q ' -c '; then
                 CFG=$(printf "%s" "${XPR_BASE_NAME}" | cut -d '_' -f 2)
-                printf "Retrieving configuration-dictionary name '%s.dict'\n" "${CFG}"
+                printf "INFO: [VBS 10] Retrieving configuration-dictionary name '%s.dict'\n" "${CFG}"
                 set -- "$@" "-c" "${CFG}"
             fi
         # Handles flavor mode (<prj>_<flavor>_<config>.xpr).
         elif [ "$NUM_ARGS" -eq 3 ]; then
             if ! printf "%s" "$ORIG_ARGS" | grep -q ' -f '; then
                 FLV=$(printf "%s" "${XPR_BASE_NAME}" | cut -d '_' -f 2)
-                printf "Retrieving flavor name '%s'\n" "${FLV}"
+                printf "INFO: [VBS 10] Retrieving flavor name '%s'\n" "${FLV}"
                 set -- "$@" "-f" "${FLV}"
             fi
             if ! printf "%s" "$ORIG_ARGS" | grep -q ' -c '; then
                 CFG=$(printf "%s" "${XPR_BASE_NAME}" | cut -d '_' -f 3)
-                printf "Retrieving configuration-dictionary name '%s.dict'\n" "${CFG}"
+                printf "INFO: [VBS 10] Retrieving configuration-dictionary name '%s.dict'\n" "${CFG}"
                 set -- "$@" "-c" "${CFG}"
             fi
         else
             # Requires explicit configuration name if format is non-standard.
             if ! printf "%s" "$ORIG_ARGS" | grep -q ' -c '; then
-                printf "Please specify configuration-dictionary name\n"
-                printf "Exiting...\n"; exit 1
+                printf "ERROR: [VBS 10] Please specify configuration-dictionary name\n"
+                exit 1
             fi
         fi
         ;;
@@ -272,9 +272,9 @@ while getopts "$OPTSTRING" opt; do
         # Validates that the flavor name exists in the available flavor list.
         printf "%s" "${FLAVOR_LIST}" | grep -q "^${FLAVOR}$"
         if [ $? -ne 0 ]; then
-            printf "Flavor '%s' not found\n" "${FLAVOR}"
-            printf "Known flavors:\n%s\n" "${FLAVOR_LIST}"
-            printf "Exiting...\n"; exit 1
+            printf "ERROR: [VBS 10] Flavor '%s' not found\n" "${FLAVOR}"
+            printf "INFO: [VBS 10] Known flavors:\n%s\n" "${FLAVOR_LIST}"
+            exit 1
         fi
         TCL_ARGS="flavor='${FLAVOR}' ${TCL_ARGS}"
         ;;
@@ -297,12 +297,12 @@ while getopts "$OPTSTRING" opt; do
         if [ -f "${TCL_FILE}" ]; then
             TCL_ARGS="tcl_file='${TCL_FILE}' ${TCL_ARGS}"
         else
-            printf "Did not find TCL file '%s'\n" "${OPTARG}"
-            printf "Exiting...\n"; exit 1
+            printf "ERROR: [VBS 10] Did not find TCL file '%s'\n" "${OPTARG}"
+            exit 1
         fi
         ;;
     :)
-        printf "Option -%s requires an argument\n" "${OPTARG}"
+        printf "ERROR: [VBS 10] Option -%s requires an argument\n" "${OPTARG}"
         exit 1
         ;;
     h|\?)
@@ -318,13 +318,13 @@ if [ -z "${FLAVOR}" ] && [ -n "${FLAVOR_LIST}" ]; then
 
     printf "%s" "${FLAVOR_LIST}" | grep -q "^${WORK_DIR}$"
     if [ $? -ne 0 ]; then
-        printf "Please specify a flavor\n"
-        printf "Known flavors:\n%s\n" "${FLAVOR_LIST}"
-        printf "Exiting...\n"; exit 1
+        printf "ERROR: [VBS 10] Please specify a flavor\n"
+        printf "INFO: [VBS 10] Known flavors:\n%s\n" "${FLAVOR_LIST}"
+        exit 1
     else
         FLAVOR="${WORK_DIR}"
         TCL_ARGS="flavor='${FLAVOR}' ${TCL_ARGS}"
-        printf "Running build for flavor %s ...\n" "${FLAVOR}"
+        printf "INFO: [VBS 10] Running build for flavor %s ...\n" "${FLAVOR}"
     fi
 fi
 
@@ -341,20 +341,20 @@ while getopts "$OPTSTRING" opt; do
         BUILD_NAME="${OPTARG}"
         # Checks if the specified build directory and name already exist.
         if [ -n "${BUILD_DIR}" ] && [ -d "${BUILD_DIR}/${BUILD_NAME}" ]; then
-            printf "Build '%s' already exists in %s\n" "${BUILD_NAME}" "${BUILD_DIR}"
-            printf "Exiting...\n"; exit 1
+            printf "ERROR: [VBS 10] Build '%s' already exists in %s\n" "${BUILD_NAME}" "${BUILD_DIR}"
+            exit 1
         fi
         ;;
     s)
         STEP="${OPTARG}"
         if [ -z "${VIVADO_XPR}" ]; then
-            printf "No Vivado project specified for option '-s'\n"
-            printf "Exiting...\n"; exit 1
+            printf "ERROR: [VBS 10] No Vivado project specified for option '-s'\n"
+            exit 1
         # Validates that the specified start step is recognized.
         elif ! printf "%s" " ${VALID_STEPS} " | grep -q " ${STEP} "; then
-            printf "Invalid step '%s'\n" "${STEP}"
-            printf "Valid build steps: %s\n" "${VALID_STEPS}"
-            printf "Exiting...\n"; exit 1
+            printf "ERROR: [VBS 10] Invalid step '%s'\n" "${STEP}"
+            printf "INFO: [VBS 10] Valid build steps: %s\n" "${VALID_STEPS}"
+            exit 1
         fi
         TCL_ARGS="start_step='${STEP}' ${TCL_ARGS}"
         ;;
@@ -362,9 +362,9 @@ while getopts "$OPTSTRING" opt; do
         STEP="${OPTARG}"
         # Validates that the specified end step is recognized.
         if ! printf "%s" " ${VALID_STEPS} " | grep -q " ${STEP} "; then
-            printf "Invalid step '%s'\n" "${STEP}"
-            printf "Valid build steps: %s\n" "${VALID_STEPS}"
-            printf "Exiting...\n"; exit 1
+            printf "ERROR: [VBS 10] Invalid step '%s'\n" "${STEP}"
+            printf "INFO: [VBS 10] Valid build steps: %s\n" "${VALID_STEPS}"
+            exit 1
         fi
         TCL_ARGS="end_step='${STEP}' ${TCL_ARGS}"
         ;;
@@ -372,8 +372,8 @@ while getopts "$OPTSTRING" opt; do
         CONFIG_DICT_NAME="${OPTARG%.dict}.dict"
 
         if [ ! -f "${DICT_DIR}/${CONFIG_DICT_NAME}" ]; then
-            printf "Did not find configuration-dictionary '%s' in folder %s/\n" "${CONFIG_DICT_NAME}" "${DICT_DIR}"
-            printf "Exiting...\n"; exit 1
+            printf "ERROR: [VBS 10] Did not find configuration-dictionary '%s' in folder %s/\n" "${CONFIG_DICT_NAME}" "${DICT_DIR}"
+            exit 1
         fi
         ;;
     g)
@@ -392,19 +392,19 @@ done
 if [ -z "${CONFIG_DICT_NAME}" ]; then
     CONFIG_DICT_NAMES="$(ls -1 "${DICT_DIR}"/*.dict 2>/dev/null)"
     if [ $? -ne 0 ]; then
-        printf "Did not find configuration-dictionary in folder %s/\n" "${DICT_DIR}"
-        printf "Exiting...\n"; exit 1
+        printf "ERROR: [VBS 10] Did not find configuration-dictionary in folder %s/\n" "${DICT_DIR}"
+        exit 1
     else
         # Prioritizes "config.dict" if multiple dictionaries are found.
         if printf "%s" " ${CONFIG_DICT_NAMES} " | grep -q " config\.dict "; then
             CONFIG_DICT_NAME="config.dict"
         elif [ "$(printf "%s" "${CONFIG_DICT_NAMES}" | wc -l)" -gt 1 ]; then
             # Requires explicit selection if multiple non-default dictionaries exist.
-            printf "Multiple configuration-dictionary files found. Use the -c option to pick one:\n"
+            printf "ERROR: [VBS 10] Multiple configuration-dictionary files found. Use the -c option to pick one:\n"
             printf "%s\n" "${CONFIG_DICT_NAMES}" | while IFS= read -r I; do
                 printf "\t%s\n" "$(basename "${I}")"
             done
-            printf "Exiting...\n"; exit 1
+            exit 1
         else
             # Selects the single dictionary file found.
             CONFIG_DICT_NAME=$(basename "$(printf "%s" "${CONFIG_DICT_NAMES}" | head -n 1)")
@@ -441,7 +441,7 @@ EOF
 # MDICT captures the full dictionary content, with one key-value pair per line.
 MDICT="$(merge_dicts "$CONFIG_DICT_NAME")"
 if [ $? -gt 0 ]; then
-    printf "ERROR: Parsing dictionary include files failed\n"; exit 1
+    printf "ERROR: [VBS 10] Parsing dictionary include files failed\n"; exit 1
 fi
 
 # Function to search for a key's value within the merged dictionary stream.
@@ -478,12 +478,12 @@ CDF_VER_MINOR=$(printf "%s" "$CDF_VER" | cut -d '.' -f 2)
 
 # Compares major and minor versions.
 if [ "$DICT_CDF_VER_MAJOR" -lt "$CDF_VER_MAJOR" ]; then
-    printf "ERROR: The configuration dictionary file '%s' is incompatible with the current version of the Vivado Build Scripts\n" "${CONFIG_DICT_NAME}"
+    printf "ERROR: [VBS 10] The configuration dictionary file '%s' is incompatible with the current version of the Vivado Build Scripts\n" "${CONFIG_DICT_NAME}"
     exit 1
 elif [ "$DICT_CDF_VER_MAJOR" -gt "$CDF_VER_MAJOR" ] || \
-   [ "$DICT_CDF_VER_MINOR" -gt "$CDF_VER_MINOR" ];
+     [ "$DICT_CDF_VER_MINOR" -gt "$CDF_VER_MINOR" ];
 then
-    printf "WARNING: The configuration dictionary file '%s' expects a newer version of the Vivado Build Scripts\n" "${CONFIG_DICT_NAME}"
+    printf "WARNING: [VBS 10] The configuration dictionary file '%s' expects a newer version of the Vivado Build Scripts\n" "${CONFIG_DICT_NAME}"
 fi
 
 ## Overwrite project name with precedence:
@@ -556,14 +556,14 @@ get_vcsver()
 
 # Ensures the 'vivado' command is available on the system path.
 if ! command -v vivado >/dev/null 2>&1; then
-    printf "ERROR: 'vivado' command not found. Please ensure the Vivado tools are sourced in your environment.\n"
+    printf "ERROR: [VBS 10] 'vivado' command not found. Please ensure the Vivado tools are sourced in your environment.\n"
     exit 1
 fi
 
 # Retrieves the Git version information.
 CWD_SAVE="$(pwd)"
 if ! cd "${BASE_DIR}"; then
-    printf "Error: Cannot CD to BASE_DIR %s\n" "${BASE_DIR}"
+    printf "ERROR: [VBS 10] Cannot CD to BASE_DIR %s\n" "${BASE_DIR}"
     exit 1
 fi
 # Strips all line endings
@@ -604,11 +604,11 @@ if [ -n "${VIVADO_XPR}" ]; then
     VIVADO_XPR_DIR="$(dirname "${VIVADO_XPR}")"
     # Copies an existing Vivado project to the new build folder if specified.
     if [ -n "${BUILD_DIR}" ] || [ -n "${BUILD_NAME}" ]; then
-        printf "Copying Vivado Project %s to build folder %s\n" "${VIVADO_XPR_DIR}" "${PRJ_DIR}"
+        printf "INFO: [VBS 10] Copying Vivado Project %s to build folder %s\n" "${VIVADO_XPR_DIR}" "${PRJ_DIR}"
         mkdir -p "${PRJ_DIR_CONTAINER}"
         cp -ar "${VIVADO_XPR_DIR}/." "${PRJ_DIR}"
         if [ $? -ne 0 ]; then
-            printf "Could not copy Vivado Project. Exiting...\n"; exit 1
+            printf "ERROR: [VBS 10] Could not copy Vivado Project\n"; exit 1
         fi
     else
         # Uses the existing project's directory as the current project directory.
@@ -618,21 +618,21 @@ else
     # Creates the new build directory.
     mkdir -p "$PRJ_DIR"
     if [ $? -ne 0 ]; then
-        printf "Could not create project directory: %s\n" "$PRJ_DIR"
-        printf "Exiting...\n"; exit 1
+        printf "ERROR: [VBS 10] Could not create project directory: %s\n" "$PRJ_DIR"
+        exit 1
     fi
 fi
 
 # Changes directory to the project build folder for execution.
 CWD_SAVE="$(pwd)"
 if ! cd "$PRJ_DIR"; then
-    printf "Error: Cannot CD to project directory %s\n" "$PRJ_DIR"
+    printf "ERROR: [VBS 10] Cannot CD to project directory %s\n" "$PRJ_DIR"
     exit 1
 fi
 
-printf "Using %s as the build directory\n" "$PRJ_DIR"
+printf "INFO: [VBS 10] Using %s as the build directory\n" "$PRJ_DIR"
 if [ "${VBS_DISABLE_GIT}" = "1" ]; then
-    printf "INFO: VBS Git integration disabled via environment variable (VBS_DISABLE_GIT=${VBS_DISABLE_GIT})\n"
+    printf "INFO: [VBS 10] VBS Git integration disabled via environment variable (VBS_DISABLE_GIT=${VBS_DISABLE_GIT})\n"
 fi
 
 # Executes Vivado in batch mode, sourcing the main TCL build script.
@@ -649,19 +649,19 @@ VIVADO_END_TIME=$(date +%s)
 VIVADO_ELAPSED_TIME=$((VIVADO_END_TIME - VIVADO_START_TIME))
 T_MINUTES=$((VIVADO_ELAPSED_TIME / 60))
 T_SECONDS=$((VIVADO_ELAPSED_TIME % 60))
-printf "Vivado elapsed time (real): %dm%ds\n" "$T_MINUTES" "$T_SECONDS"
+printf "INFO: [VBS 10] Vivado elapsed time (real): %dm%ds\n" "$T_MINUTES" "$T_SECONDS"
 
-printf "The build directory was %s\n" "$PRJ_DIR"
-printf "Vivado Project:\n"
+printf "INFO: [VBS 10] The build directory was %s\n" "$PRJ_DIR"
+printf "INFO: [VBS 10] Vivado Project:\n"
 # Find artifacts in the current directory and print their absolute paths.
 find . -maxdepth 1 -type f \
     -name "*.xpr" \
-    -exec sh -c 'printf "\t%s/%s\n" "$(pwd)" "${1#./}"' _ {} \;
-printf "FPGA Binaries:\n"
+    -exec sh -c 'printf "INFO: [VBS 10]     %s/%s\n" "$(pwd)" "${1#./}"' _ {} \;
+printf "INFO: [VBS 10] FPGA Binaries:\n"
 # Find artifacts in the current directory and print their absolute paths.
 find . -maxdepth 1 -type f \
     \( -name "*.ltx" -o -name "*.pdi" -o -name "*.bit" -o -name "*.mcs" -o -name "*.xsa" \) \
-    -exec sh -c 'printf "\t%s/%s\n" "$(pwd)" "${1#./}"' _ {} \;
+    -exec sh -c 'printf "INFO: [VBS 10]     %s/%s\n" "$(pwd)" "${1#./}"' _ {} \;
 
 cd "$CWD_SAVE"
 

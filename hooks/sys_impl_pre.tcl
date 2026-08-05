@@ -30,7 +30,7 @@
 
 ################################################################################
 
-puts "Start hook script 'sys_impl_pre' ..."
+puts "INFO: \[VBS 31] Start hook script 'sys_impl_pre' ..."
 
 set project_dir [file normalize [pwd]]
 set bvars_file [get_files -quiet "bvars.dict"]
@@ -71,4 +71,4 @@ if {$start_step == 7} {
 
 ################################################################################
 
-puts "Hook script 'sys_impl_pre' done."
+puts "INFO: \[VBS 31] Hook script 'sys_impl_pre' done."

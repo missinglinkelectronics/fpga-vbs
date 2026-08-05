@@ -2,7 +2,7 @@
 #
 ################################################################################
 ##
-## Copyright 2018-2019 Missing Link Electronics, Inc.
+## Copyright 2018-2026 Missing Link Electronics, Inc.
 ##
 ## Licensed under the Apache License, Version 2.0 (the "License");
 ## you may not use this file except in compliance with the License.
@@ -31,7 +31,7 @@
 
 ################################################################################
 
-puts "Start script 'Post-Implementation' ..."
+puts "INFO: \[VBS 32] Start script 'Post-Implementation' ..."
 
 set project_dir [file normalize [pwd]]
 set bvars_file [get_files -quiet "bvars.dict"]
@@ -60,7 +60,7 @@ set run_impl_dir "[file normalize "${project_dir}/${project_name}.runs/${run_imp
 set impl_log_gen_path "[file normalize "${run_impl_dir}/runme.log"]"
 if [file exists $impl_log_gen_path] {
     # Copy log file
-    puts "Copying generated .log file to build directory with name ${result_base_impl}_runme.log"
+    puts "INFO: \[VBS 32] Copying generated .log file to build directory with name ${result_base_impl}_runme.log"
     set impl_log_path "[file normalize "${project_dir}/${result_base_impl}_runme.log"]"
     file copy -force -- $impl_log_gen_path $impl_log_path
 }
@@ -93,4 +93,4 @@ dict set bvars RIMPLDIR $run_impl_dir
 
 save_dict $bvars_file $bvars
 
-puts "Script 'Post-Implementation' done."
+puts "INFO: \[VBS 32] Script 'Post-Implementation' done."

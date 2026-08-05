@@ -2,7 +2,7 @@
 #
 ################################################################################
 ##
-## Copyright 2018-2019 Missing Link Electronics, Inc.
+## Copyright 2018-2026 Missing Link Electronics, Inc.
 ##
 ## Licensed under the Apache License, Version 2.0 (the "License");
 ## you may not use this file except in compliance with the License.
@@ -30,7 +30,7 @@
 
 ################################################################################
 
-puts "Start script 'Post-Bitstream' ..."
+puts "INFO: \[VBS 34] Start script 'Post-Bitstream' ..."
 
 set project_dir [file normalize [pwd]]
 set bvars_file [get_files -quiet "bvars.dict"]
@@ -81,10 +81,10 @@ foreach postfix $copy_list {
     set dst_file "${project_dir}/${result_base}${postfix}.${bin}"
 
     if {[file exists $src_file]} {
-        puts "Copying [file tail $src_file] to build directory as [file tail $dst_file]"
+        puts "INFO: \[VBS 34] Copying [file tail $src_file] to build directory as [file tail $dst_file]"
         file copy -force -- $src_file $dst_file
     } else {
-        puts "WARNING: Expected file not found: $src_file"
+        puts "WARNING: \[VBS 34] Expected file not found: $src_file"
     }
 }
 
@@ -117,4 +117,4 @@ if {[package vcompare [version -short] 2019.2] >= 0} {
 
 ################################################################################
 
-puts "Script 'Post-Bitstream' done."
+puts "INFO: \[VBS 34] Script 'Post-Bitstream' done."

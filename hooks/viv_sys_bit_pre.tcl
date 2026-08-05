@@ -30,7 +30,7 @@
 
 ################################################################################
 
-puts "Start hook script 'Pre-Bitstream' ..."
+puts "INFO: \[VBS 33] Start hook script 'Pre-Bitstream' ..."
 
 set project_dir [file normalize "[pwd]/../.."]
 set bvars_file [get_files -quiet "bvars.dict"]
@@ -38,10 +38,10 @@ if {"${bvars_file}" == ""} {
     set bvars_file [file normalize "${project_dir}/bvars.dict"]
 }
 if {![file exists "${bvars_file}"]} {
-    puts "WARNING: 'bvars.dict' not found. Skipping hook script 'Pre-Bitstream'."
+    puts "WARNING: \[VBS 33] 'bvars.dict' not found. Skipping hook script 'Pre-Bitstream'."
     return
 } else {
-    puts "Start hook script 'Pre-Bitstream' ..."
+    puts "INFO: \[VBS 33] Start hook script 'Pre-Bitstream' ..."
 }
 set helper_script [get_files -quiet "helper.tcl"]
 if {"${helper_script}" == ""} {
@@ -70,10 +70,10 @@ if {$git_err} {
 set usr_acces_val [get_property BITSTREAM.CONFIG.USR_ACCESS [current_design]]
 # The Git stamp value is the default, do not overwrite user settings.
 if {![llength $usr_acces_val]} {
-    puts "Setting USR_ACCESSE2 to Git stamp '0x${bcommit}${misc_nibble}'"
+    puts "INFO: \[VBS 33] Setting USR_ACCESSE2 to Git stamp '0x${bcommit}${misc_nibble}'"
     set_property BITSTREAM.CONFIG.USR_ACCESS ${bcommit}${misc_nibble} [current_design]
 } else {
-    puts "USR_ACCESSE2: '${usr_acces_val}'"
+    puts "INFO: \[VBS 33] USR_ACCESSE2: '${usr_acces_val}'"
 }
 
 ################################################################################
@@ -90,6 +90,6 @@ save_dict $bvars_file $bvars
 
 ################################################################################
 
-puts "Hook script 'Pre-Bitstream' done."
+puts "INFO: \[VBS 33] Hook script 'Pre-Bitstream' done."
 
 exec_usr_hooks "viv_bit_pre" $bvars

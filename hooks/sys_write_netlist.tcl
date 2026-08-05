@@ -2,7 +2,7 @@
 #
 ################################################################################
 ##
-## Copyright 2019 Missing Link Electronics, Inc.
+## Copyright 2019-2026 Missing Link Electronics, Inc.
 ##
 ## Licensed under the Apache License, Version 2.0 (the "License");
 ## you may not use this file except in compliance with the License.
@@ -60,7 +60,7 @@ proc mod_hdr {filename mod_str file_type} {
     } elseif {$file_type == "vhdl"} {
         set lines [lreplace $lines 6 6 "-- VBS         : ${mod_str}"]
     } else {
-        puts "WARNING: Unsupported format in mod_hdr"
+        puts "WARNING: \[VBS 38] Unsupported format in mod_hdr"
     }
     seek $fd 0
     chan truncate $fd 0
@@ -73,13 +73,13 @@ proc mod_hdr {filename mod_str file_type} {
 
 ################################################################################
 
-puts "Start sys_write_netlist script ..."
+puts "INFO: \[VBS 38] Start sys_write_netlist script ..."
 open_run "${run_synth}"
 
 dict for {inst inst_dict} [dict get $config_dict "WRITE_NETLISTS"] {
     set cell [get_cells "${inst}"]
     if {"${cell}" eq ""} {
-        puts "WARNING: Cell for Netlist generation not found"
+        puts "WARNING: \[VBS 38] Cell for Netlist generation not found: ${inst}"
         continue
     }
 
@@ -138,4 +138,4 @@ dict for {inst inst_dict} [dict get $config_dict "WRITE_NETLISTS"] {
 }
 
 close_design
-puts "sys_write_netlist script done"
+puts "INFO: \[VBS 38] sys_write_netlist script done."

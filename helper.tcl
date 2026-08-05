@@ -2,7 +2,7 @@
 #
 ################################################################################
 ##
-## Copyright 2015-2019 Missing Link Electronics, Inc.
+## Copyright 2015-2026 Missing Link Electronics, Inc.
 ##
 ## Licensed under the Apache License, Version 2.0 (the "License");
 ## you may not use this file except in compliance with the License.
@@ -130,7 +130,7 @@ proc delete_key {dbase key} {
         if {[dict exists $dbase $key]} {
             return [dict remove $dbase $key]
         } else {
-            puts "WARNING: Key ${key} not found in dictionary"
+            puts "WARNING: \[VBS 21] Key ${key} not found in dictionary"
             return $dbase
         }
     } else {
@@ -138,7 +138,7 @@ proc delete_key {dbase key} {
         if {[dict exists $dbase $sub_key]} {
             set sub_dict [dict get $dbase $sub_key]
         } else {
-            puts "WARNING: Key ${sub_key} not found in dictionary"
+            puts "WARNING: \[VBS 21] Key ${sub_key} not found in dictionary"
             return $dbase
         }
         set join_keys  [join [lrange $split_keys 1 end] ":"]
@@ -155,7 +155,7 @@ proc time_stamp {} {
 proc git_exists {} {
     # Check if Git integration is explicitly disabled via environment variable
     if {[info exists ::env(VBS_DISABLE_GIT)] && $::env(VBS_DISABLE_GIT) eq "1"} {
-        puts "INFO: Git integration is disabled via VBS_DISABLE_GIT"
+        puts "INFO: \[VBS 21] Git integration is disabled via VBS_DISABLE_GIT"
         return -code 2
     }
 
@@ -163,13 +163,13 @@ proc git_exists {} {
         set ec [dict get $options -errorcode]
         if {[regexp {^POSIX ENOENT} $ec] == 1} {
             # assume no git executable found
-            puts "INFO: Apparently there is no git executable"
+            puts "INFO: \[VBS 21] Apparently there is no git executable"
             return -code 2
         } elseif {[regexp {^fatal: not a git repository} $result] == 1} {
-            puts "INFO: Repository directory is not a git repository"
+            puts "INFO: \[VBS 21] Repository directory is not a git repository"
             return -code 2
         } else {
-            puts "Failed ($result)"
+            puts "ERROR: \[VBS 21] Git check failed ($result)"
             return -code 1
         }
     }
@@ -233,10 +233,10 @@ proc git_stamp_submodules {build_branch repo_root} {
                     }
 
                     if {$can_reuse} {
-                        puts "Reusing existing submodule commit $existing_commit for '$sub_path' ..."
+                        puts "INFO: \[VBS 21] Reusing existing submodule commit $existing_commit for '$sub_path' ..."
                         lappend dirty_submodules [list $sub_path $base_sub_branch 0 $existing_commit $rel_sub_path]
                     } else {
-                        puts "Submodule '$sub_path' is dirty. Creating temporary submodule commit ..."
+                        puts "INFO: \[VBS 21] Submodule '$sub_path' is dirty. Creating temporary submodule commit ..."
 
                         # Save starting HEAD of submodule
                         catch {exec git -C $sub_path rev-parse --short HEAD} sub_head
@@ -244,7 +244,7 @@ proc git_stamp_submodules {build_branch repo_root} {
                         # Stage and commit inside submodule using step-specific branch tag
                         catch {exec git -C $sub_path add -A .}
                         if {[catch {exec git -C $sub_path commit -m "VBS Submodule Build: $build_branch"} err]} {
-                            puts "WARNING: Failed to commit submodule '$sub_path': $err"
+                            puts "WARNING: \[VBS 21] Failed to commit submodule '$sub_path': $err"
                         } else {
                             catch {exec git -C $sub_path rev-parse --verify HEAD} new_sub_head
                             set new_sub_head [string trim $new_sub_head]
@@ -303,16 +303,16 @@ proc git_stamp {build_branch} {
             set curbranch [lindex $br_list 0]
         } else {
             if {[catch {exec git rev-parse --short HEAD} curbranch]} {
-                puts "failed ($curbranch)."
+                puts "ERROR: \[VBS 21] Git rev-parse failed ($curbranch)."
                 return -code 1
             }
         }
     }
 
-    puts "Looking for changes and untracked files ..."
+    puts "INFO: \[VBS 21] Looking for changes and untracked files ..."
 
     if {[catch {exec git status -s} result_status]} {
-        puts "failed ($result_status)."
+        puts "ERROR: \[VBS 21] Git status failed ($result_status)."
         return -code 1
     }
 
@@ -325,20 +325,20 @@ proc git_stamp {build_branch} {
     }
 
     if {$num_changes > 0} {
-        puts "$num_changes changed/untracked files or submodules in working directory."
+        puts "INFO: \[VBS 21] $num_changes changed/untracked files or submodules in working directory."
 
         # Prepare submodule commit SHAs
         set dirty_submodules [git_stamp_submodules $build_branch $repo_root]
 
-        puts "Detaching parent from $curbranch ..."
+        puts "INFO: \[VBS 21] Detaching parent from $curbranch ..."
         if {[catch {exec git checkout --detach -q} result]} {
-            puts "failed ($result)."
+            puts "ERROR: \[VBS 21] Checkout detach failed ($result)."
             return [git_undo "${curbranch}" 0 $dirty_submodules]
         }
 
-        puts "Staging all workdir changes (including updated submodule pointers) ..."
+        puts "INFO: \[VBS 21] Staging all workdir changes (including updated submodule pointers) ..."
         if {[catch {exec git add -A "${repo_root}"} result]} {
-            puts "failed ($result)."
+            puts "ERROR: \[VBS 21] Git add failed ($result)."
             return [git_undo "${curbranch}" 1 $dirty_submodules]
         }
 
@@ -349,39 +349,39 @@ proc git_stamp {build_branch} {
             set rel_sub_path [lindex $item 4]
             if {$sub_sha ne "" && $rel_sub_path ne ""} {
                 if {[catch {exec git -C $repo_root update-index --add --cacheinfo 160000,$sub_sha,$rel_sub_path} upd_err]} {
-                    puts "WARNING: Failed to update index for '$rel_sub_path': $upd_err"
+                    puts "WARNING: \[VBS 21] Failed to update index for '$rel_sub_path': $upd_err"
                 }
             }
         }
 
-        puts "Committing all workdir changes ..."
+        puts "INFO: \[VBS 21] Committing all workdir changes ..."
         if {[catch {exec git commit -m "${build_branch}"} result]} {
-            puts "failed ($result)."
+            puts "ERROR: \[VBS 21] Git commit failed ($result)."
             return [git_undo "${curbranch}" 2 $dirty_submodules]
         }
 
-        puts "Creating new branch ${build_branch} ..."
+        puts "INFO: \[VBS 21] Creating new branch ${build_branch} ..."
         if {[catch {exec git branch -f "${build_branch}"} result]} {
-            puts "failed ($result)."
+            puts "ERROR: \[VBS 21] Branch creation failed ($result)."
             return [git_undo "${curbranch}" 2 $dirty_submodules]
         }
 
         if {[catch {exec git rev-parse --verify --short HEAD} result]} {
-            puts "failed ($result)."
+            puts "ERROR: \[VBS 21] Git rev-parse failed ($result)."
             return [git_undo "${curbranch}" 2 $dirty_submodules]
         }
         set bcommit [string range $result 0 6]
-        puts "Build commit is $result"
+        puts "INFO: \[VBS 21] Build commit is $result"
 
-        puts "Resetting parent to previous state ..."
+        puts "INFO: \[VBS 21] Resetting parent to previous state ..."
         if {[catch {exec git reset HEAD^} result]} {
-            puts "failed ($result)."
+            puts "ERROR: \[VBS 21] Git reset failed ($result)."
             return [git_undo "${curbranch}" 2 $dirty_submodules]
         }
 
-        puts "Restoring parent to $curbranch state ..."
+        puts "INFO: \[VBS 21] Restoring parent to $curbranch state ..."
         if {[catch {exec git checkout -q "${curbranch}"} result]} {
-            puts "failed ($result)."
+            puts "ERROR: \[VBS 21] Git checkout failed ($result)."
             return -code 1
         }
 
@@ -396,14 +396,14 @@ proc git_stamp {build_branch} {
 
         set bctype 2
     } else {
-        puts "No working directory changes, skipping build commit."
+        puts "INFO: \[VBS 21] No working directory changes, skipping build commit."
 
         if {[catch {exec git rev-parse --verify --short HEAD} result]} {
-            puts "failed ($result)."
+            puts "ERROR: \[VBS 21] Git rev-parse failed ($result)."
             return -code 1
         }
         set bcommit [string range $result 0 6]
-        puts "Regular commit is $result"
+        puts "INFO: \[VBS 21] Regular commit is $result"
 
         set bctype 1
     }
@@ -417,14 +417,14 @@ proc exec_usr_hooks {build_step bvars} {
         if {[dict exists $hooks_dict $build_step]} {
             set usr_hooks_dict [dict get $hooks_dict $build_step]
             foreach hook $usr_hooks_dict {
-                puts "Sourcing user-hook ${hook} for step $build_step"
+                puts "INFO: \[VBS 21] Sourcing user-hook ${hook} for step $build_step"
                 set hook_utils_file [get_files -quiet [file tail $hook]]
                 if {"${hook_utils_file}" != ""} {
                     source "${hook_utils_file}"
                 } elseif {[file exists "${hook}"]} {
                     source "${hook}"
                 } else {
-                    puts "ERROR: User-hook file not found '$hook'"
+                    puts "ERROR: \[VBS 21] User-hook file not found '$hook'"
                     exit 2
                 }
             }
@@ -498,7 +498,7 @@ proc vbs_check_syntax {fileset_obj} {
                 set ftype [get_property FILE_TYPE $file_obj]
 
                 if {[lsearch -exact $skip_types $ftype] != -1} {
-                    puts "INFO: Ignoring syntax check error for $ftype file: [file tail $file_path]:$line_num"
+                    puts "INFO: \[VBS 21] Ignoring syntax check error for $ftype file: [file tail $file_path]:$line_num"
                     continue
                 }
             }
@@ -509,7 +509,7 @@ proc vbs_check_syntax {fileset_obj} {
     }
 
     if {$has_errors} {
-        puts "\nERROR: Syntax check failed for supported file types:"
+        puts "\nERROR: \[VBS 21] Syntax check failed for supported file types:"
         puts $error_log
         return "CRITICAL WARNING: Syntax errors found"
     }

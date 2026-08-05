@@ -31,7 +31,7 @@
 
 ################################################################################
 
-puts "Start script 'Post-Synthesis' ..."
+puts "INFO: \[VBS 30] Start script 'Post-Synthesis' ..."
 
 set project_dir [file normalize [pwd]]
 set bvars_file [get_files -quiet "bvars.dict"]
@@ -59,7 +59,7 @@ set result_base_synth "${result_base}_synth"
 set synth_log_gen_path "[file normalize "${project_dir}/${project_name}.runs/${run_synth}/runme.log"]"
 if [file exists $synth_log_gen_path] {
     # Copy log file
-    puts "Copying generated .log file to build directory with name ${result_base_synth}_runme.log"
+    puts "INFO: \[VBS 30] Copying generated .log file to build directory with name ${result_base_synth}_runme.log"
     set synth_log_path "[file normalize "${project_dir}/${result_base_synth}_runme.log"]"
     file copy -force -- $synth_log_gen_path $synth_log_path
 }
@@ -77,7 +77,7 @@ if {[package vcompare [version -short] 2019.2] >= 0} {
     write_hwdef -quiet -file "${hdf_path}"
 }
 if {[file exists "$hdf_path"]} {
-    puts "Generating Hardware Definition File ${hdf_path}"
+    puts "INFO: \[VBS 30] Generating Hardware Definition File ${hdf_path}"
     set sdk_dir         "[file normalize "${project_dir}/${project_name}.sdk"]"
     set sysdef_out_file "[file normalize "${sdk_dir}/${tl_name}.hdf"]"
     file mkdir "${sdk_dir}"
@@ -88,4 +88,4 @@ if {[file exists "$hdf_path"]} {
 
 save_dict $bvars_file $bvars
 
-puts "Script 'Post-Synthesis' done."
+puts "INFO: \[VBS 30] Script 'Post-Synthesis' done."

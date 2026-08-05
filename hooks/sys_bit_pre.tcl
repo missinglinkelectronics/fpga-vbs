@@ -2,7 +2,7 @@
 #
 ################################################################################
 ##
-## Copyright 2019 Missing Link Electronics, Inc.
+## Copyright 2019-2026 Missing Link Electronics, Inc.
 ##
 ## Licensed under the Apache License, Version 2.0 (the "License");
 ## you may not use this file except in compliance with the License.
@@ -30,7 +30,7 @@
 
 ################################################################################
 
-puts "Start hook script 'sys_bit_pre' ..."
+puts "INFO: \[VBS 33] Start hook script 'sys_bit_pre' ..."
 
 set project_dir [file normalize [pwd]]
 set bvars_file [get_files -quiet "bvars.dict"]
@@ -71,4 +71,4 @@ if {$start_step == 8} {
 
 ################################################################################
 
-puts "Hook script 'sys_bit_pre' done."
+puts "INFO: \[VBS 33] Hook script 'sys_bit_pre' done."

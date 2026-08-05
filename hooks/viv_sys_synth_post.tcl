@@ -35,10 +35,10 @@ if {"${bvars_file}" == ""} {
     set bvars_file [file normalize "${project_dir}/bvars.dict"]
 }
 if {![file exists "${bvars_file}"]} {
-    puts "WARNING: 'bvars.dict' not found. Skipping hook script 'Post-Synthesis'."
+    puts "WARNING: \[VBS 36] 'bvars.dict' not found. Skipping hook script 'Post-Synthesis'."
     return
 } else {
-    puts "Start hook script 'Post-Synthesis' ..."
+    puts "INFO: \[VBS 36] Start hook script 'Post-Synthesis' ..."
 }
 set helper_script [get_files -quiet "helper.tcl"]
 if {"${helper_script}" == ""} {
@@ -70,11 +70,11 @@ set bctype 3
 
 if {[set error [catch {git_exists}]]} {
     if {$error == 2} {
-        puts "Skipping GIT build commit"
+        puts "INFO: \[VBS 36] Skipping GIT build commit"
         set bctype  0
     }
 } elseif {[catch {git_stamp "${build_branch_ps}"} result]} {
-    puts "Failed post synthesis GIT build commit"
+    puts "ERROR: \[VBS 36] Failed post synthesis GIT build commit"
 } else {
     lassign $result bcommit bctype
     if {$bctype == 2} {
@@ -83,14 +83,14 @@ if {[set error [catch {git_exists}]]} {
 }
 
 if {$bctype != $bctype_pre} {
-    puts "Pre/post synthesis GIT status do not match"
+    puts "ERROR: \[VBS 36] Pre/post synthesis GIT status do not match"
     set bctype 3
 } elseif {$bctype == 2} {
     if {[catch {exec git diff "${build_branch}..${build_branch_ps}" | wc -l} result]} {
-        puts "Failed to diff post and pre synthesis GIT branch"
+        puts "ERROR: \[VBS 36] Failed to diff post and pre synthesis GIT branch"
         set bctype 3
     } elseif {$result} {
-        puts "Detected post synthesis GIT diff"
+        puts "ERROR: \[VBS 36] Detected post synthesis GIT diff"
         set bctype 3
     }
 }
@@ -112,7 +112,7 @@ switch $bctype {
             set bcommit "ERROR"
         }
 
-        puts "ERROR: GIT failure in post-synthesis hook. See synthesis log\
+        puts "ERROR: \[VBS 36] GIT failure in post-synthesis hook. See synthesis log\
                 for details. Continue build process ..."
         set git_err [expr {$git_err + 1}]
     }
@@ -140,6 +140,6 @@ dict set bvars RBASE   $result_base
 
 save_dict $bvars_file $bvars
 
-puts "Hook script 'Post-Synthesis' done."
+puts "INFO: \[VBS 36] Hook script 'Post-Synthesis' done."
 
 exec_usr_hooks "viv_synth_post" $bvars

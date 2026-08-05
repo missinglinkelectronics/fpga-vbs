@@ -36,10 +36,10 @@ if {"${bvars_file}" == ""} {
     set bvars_file [file normalize "${project_dir}/bvars.dict"]
 }
 if {![file exists "${bvars_file}"]} {
-    puts "WARNING: 'bvars.dict' not found. Skipping hook script 'Pre-Synthesis'."
+    puts "WARNING: \[VBS 35] 'bvars.dict' not found. Skipping hook script 'Pre-Synthesis'."
     return
 } else {
-    puts "Start hook script 'Pre-Synthesis' ..."
+    puts "INFO: \[VBS 35] Start hook script 'Pre-Synthesis' ..."
 }
 set helper_script [get_files -quiet "helper.tcl"]
 if {"${helper_script}" == ""} {
@@ -59,7 +59,7 @@ set git_err      [dict get $bvars "GITERR"]
 ## Create git branch with all uncommitted changes
 
 set bstamp [time_stamp]
-puts "Build stamp is $bstamp"
+puts "INFO: \[VBS 35] Build stamp is $bstamp"
 
 if {[string equal $flv_name "."]} {
     set flv_name ""
@@ -77,11 +77,11 @@ set gstamp [list "ERROR" 3]
 
 if {[set error [catch {git_exists}]]} {
     if {$error == 2} {
-        puts "Skipping GIT build commit"
+        puts "INFO: \[VBS 35] Skipping GIT build commit"
         set gstamp [list "" 0]
     }
 } elseif {[catch {git_stamp "${build_branch}"} result]} {
-    puts "Failed pre synthesis GIT build commit"
+    puts "ERROR: \[VBS 35] Failed pre synthesis GIT build commit"
 } else {
     set gstamp $result
 }
@@ -91,7 +91,7 @@ cd $cur_dir
 lassign $gstamp bcommit bctype
 
 if {$bctype == 3} {
-    puts "ERROR: GIT failure in pre-synthesis hook. See synthesis log\
+    puts "ERROR: \[VBS 35] GIT failure in pre-synthesis hook. See synthesis log\
             for details. Continue build process ..."
     set git_err [expr {$git_err + 1}]
 }
@@ -106,6 +106,6 @@ dict set bvars BCTYPE  $bctype
 
 save_dict $bvars_file $bvars
 
-puts "Hook script 'Pre-Synthesis' done."
+puts "INFO: \[VBS 35] Hook script 'Pre-Synthesis' done."
 
 exec_usr_hooks "viv_synth_pre" $bvars
