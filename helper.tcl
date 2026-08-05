@@ -297,15 +297,11 @@ proc git_stamp {build_branch} {
         set repo_root "."
     }
 
-    # Resolve starting branch, re-attach to branch at HEAD, or fall back to SHA
+    # Resolve starting branch name OR direct commit SHA if HEAD is detached
     if {[catch {exec git symbolic-ref --short -q HEAD} curbranch]} {
-        if {[catch {exec git branch --points-at HEAD --format="%(refname:short)"} br_list] == 0 && [llength $br_list] > 0} {
-            set curbranch [lindex $br_list 0]
-        } else {
-            if {[catch {exec git rev-parse --short HEAD} curbranch]} {
-                puts "ERROR: \[VBS 21] Git rev-parse failed ($curbranch)."
-                return -code 1
-            }
+        if {[catch {exec git rev-parse --verify --short HEAD} curbranch]} {
+            puts "ERROR: \[VBS 21] Git rev-parse failed ($curbranch)."
+            return -code 1
         }
     }
 
