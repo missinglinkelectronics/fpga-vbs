@@ -111,9 +111,6 @@ switch $bctype {
         if {[string length $bcommit] == 0} {
             set bcommit "ERROR"
         }
-
-        puts "ERROR: \[VBS 36] GIT failure in post-synthesis hook. See synthesis log\
-                for details. Continue build process ..."
         set git_err [expr {$git_err + 1}]
     }
     default { set bcommit $bcommit_pre }
