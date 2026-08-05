@@ -25,8 +25,28 @@ test_axi4-dummy-master_packaging:
       - ENV_SCRIPT: vitis-v2026.1.sh
         REASON: "The latest Vivado version"
         EXTRA_ARGS: "-i -c ipxact.dict"
+  artifacts:
+    when: always
+    reports:
+      codequality: issue_report.json
+    paths:
+      - tests/axi4-dummy-master/build/**/*.log
+      - issue_report.json
+    expire_in: 5 days
   script:
     - cd tests/axi4-dummy-master && ${ENV_SCRIPT} ../../build.sh -e package ${EXTRA_ARGS}
+    - cd ../..
+
+    # Locate generated Vivado log file
+    - LOG_FILE=$(find tests/axi4-dummy-master/build -name "vivado.log" | head -n 1)
+    - 'test -f "$LOG_FILE" || (echo "ERROR: vivado.log not found in tests/axi4-dummy-master/build!" && false)'
+
+    # Parse log and do assertions
+    - >-
+      python3 ${LOG_PARSER_SCRIPT} "$LOG_FILE" -o issue_report.json
+      --vbs-errors 0
+      --vivado-errors 0
+      --vivado-cwarns 0
 
 test_fpga-basic_bitstream:
   stage: test
@@ -65,6 +85,9 @@ test_fpga-basic_bitstream:
     # Parse log and do assertions
     - >-
       python3 ${LOG_PARSER_SCRIPT} "$LOG_FILE" -o issue_report.json
+      --vbs-errors 0
+      --vivado-errors 0
+      --vivado-cwarns 0
       --assert-info "Running hook script: synth_pre.tcl"
       --assert-info "Running hook script: synth_post0.tcl"
       --assert-info "Running hook script: synth_post1.tcl"
@@ -88,8 +111,11 @@ test_fpga-basic_incremental:
     CUSTOM_OUT_DIR: "tests/fpga-basic/build/custom_build_dir"
   artifacts:
     when: always
+    reports:
+      codequality: issue_report.json
     paths:
       - tests/fpga-basic/build/custom_build_dir/**/*.log
+      - issue_report.json
     expire_in: 5 days
   script:
     - 'echo "Running test: $REASON"'
@@ -119,6 +145,17 @@ test_fpga-basic_incremental:
     # Step 5: Bitstream / Device Image Generation (-s impl -e bit)
     - 'echo "=== Step 5: bit ==="'
     - ${ENV_SCRIPT} /bin/sh build.sh -i -b tests/fpga-basic -s impl -e bit -x "${XPR_FILE}"
+
+    # Locate generated Vivado log file
+    - LOG_FILE=$(find ${CUSTOM_OUT_DIR} -name "vivado.log" | head -n 1)
+    - 'test -f "$LOG_FILE" || (echo "ERROR: vivado.log not found in ${CUSTOM_OUT_DIR}!" && false)'
+
+    # Parse log and do assertions across all incremental steps
+    - >-
+      python3 ${LOG_PARSER_SCRIPT} "$LOG_FILE" -o issue_report.json
+      --vbs-errors 0
+      --vivado-errors 0
+      --vivado-cwarns 0
 
 test_simulation_scripts:
   stage: test
@@ -153,6 +190,9 @@ test_simulation_scripts:
     # Parse log and do assertions
     - >-
       python3 ${LOG_PARSER_SCRIPT} "$LOG_FILE" -o issue_report.json
+      --vbs-errors 0
+      --vivado-errors 0
+      --vivado-cwarns 0
       --assert-info "SIMULATION PASSED"
 
 test_simulation:
@@ -183,11 +223,22 @@ test_simulation:
     # Parse log and do assertions
     - >-
       python3 ${LOG_PARSER_SCRIPT} "$LOG_FILE" -o issue_report.json
+      --vbs-errors 0
+      --vivado-errors 0
+      --vivado-cwarns 0
       --assert-info "SIMULATION PASSED"
 
 test_add-flavor_subfolders:
   stage: test
   timeout: 10m
+  artifacts:
+    when: always
+    reports:
+      codequality: issue_report.json
+    paths:
+      - tests/add-flavor/**/build/**/*.log
+      - issue_report.json
+    expire_in: 5 days
   script:
     - 'echo "=== Step 1: Generating flavor0 and flavor1 subfolders ==="'
     - ./add_flavor.sh -p project.cfg -b tests/add-flavor flavor0
@@ -231,9 +282,21 @@ test_add-flavor_subfolders:
     - vitis-v2026.1.sh /bin/sh build.sh -b tests/add-flavor/flavor0 -e prj
     - vitis-v2026.1.sh /bin/sh build.sh -b tests/add-flavor/flavor1 -e prj
 
+    # Parse logs generated during prj creation
+    - LOG_FILES=$(find tests/add-flavor -name "vivado.log")
+    - 'for f in $LOG_FILES; do python3 ${LOG_PARSER_SCRIPT} "$f" -o issue_report.json --vbs-errors 0 --vivado-errors 0 --vivado-cwarns 0; done'
+
 test_add-flavor_flat:
   stage: test
   timeout: 10m
+  artifacts:
+    when: always
+    reports:
+      codequality: issue_report.json
+    paths:
+      - tests/add-flavor/build/**/*.log
+      - issue_report.json
+    expire_in: 5 days
   script:
     - 'echo "=== Step 1: Generating flat flavor ==="'
     - ./add_flavor.sh -p project.cfg -b tests/add-flavor
@@ -257,3 +320,12 @@ test_add-flavor_flat:
 
     - 'echo "=== Step 3: Validating project creation via build.sh ==="'
     - vitis-v2026.1.sh /bin/sh build.sh -b tests/add-flavor -e prj
+
+    # Parse log generated during prj creation
+    - LOG_FILE=$(find tests/add-flavor/build -name "vivado.log" | head -n 1)
+    - 'test -f "$LOG_FILE" || (echo "ERROR: vivado.log not found in tests/add-flavor/build!" && false)'
+    - >-
+      python3 ${LOG_PARSER_SCRIPT} "$LOG_FILE" -o issue_report.json
+      --vbs-errors 0
+      --vivado-errors 0
+      --vivado-cwarns 0
