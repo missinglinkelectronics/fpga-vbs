@@ -329,3 +329,121 @@ test_add-flavor_flat:
       --vbs-errors 0
       --vivado-errors 0
       --vivado-cwarns 0
+
+test_git_integration:
+  stage: test
+  timeout: 30m
+  parallel:
+    matrix:
+      - ENV_SCRIPT: vitis-v2026.1.sh
+  artifacts:
+    when: always
+    reports:
+      codequality: issue_report.json
+    paths:
+      - tests/fpga-basic/build/**/*.log
+      - issue_report.json
+    expire_in: 5 days
+  script:
+    - 'echo "=== Scenario 1: Untracked file dirty build ==="'
+    - touch tests/fpga-basic/untracked_test_file.txt
+
+    # Run build up to synth
+    - ${ENV_SCRIPT} /bin/sh build.sh -i -b tests/fpga-basic -e synth
+
+    # 1a. Validate folder name has '-dirty' suffix
+    - BUILD_DIR=$(find tests/fpga-basic/build -maxdepth 1 -mindepth 1 -type d -name "*_g*-dirty" | head -n 1)
+    - 'test -n "$BUILD_DIR" || (echo "ERROR: Build directory missing -dirty suffix!" && exit 1)'
+    - 'echo "Found dirty build directory: $BUILD_DIR"'
+
+    # 1b. Validate output artifact has -2 BC-flag suffix
+    - XSA_FILE=$(find "$BUILD_DIR" -name "*_g*-2*.xsa" -o -name "*_g*-2*.bit" | head -n 1)
+    - 'test -n "$XSA_FILE" || (echo "ERROR: Generated artifact missing -2 BC-flag suffix!" && exit 1)'
+    - 'echo "Found dirty build artifact: $XSA_FILE"'
+
+    # 1c. Find the temporary build branch created by Pre-Synthesis (excluding _post-synth)
+    - BRANCH_NAME=$(git branch --list "vbs_*" --format="%(refname:short)" | grep -v "_post-synth" | head -n 1)
+    - 'test -n "$BRANCH_NAME" || (echo "ERROR: Temporary build branch was not created!" && exit 1)'
+    - 'echo "Found temporary build branch: $BRANCH_NAME"'
+
+    # 1d. Validate untracked file was committed onto the temporary branch
+    - >-
+      git ls-tree -r "$BRANCH_NAME" --name-only | grep -q "tests/fpga-basic/untracked_test_file.txt" || 
+      (echo "ERROR: Untracked file not found in branch $BRANCH_NAME!" && exit 1)
+
+    # 1e. Validate log assertions with vivado_log_parser.py
+    - python3 ${LOG_PARSER_SCRIPT} "$BUILD_DIR/vivado.log" -o issue_report.json --vbs-errors 0 --vivado-errors 0 --vivado-cwarns 0 --assert-info "Build commit is"
+
+    # Cleanup scenario 1
+    - rm -f tests/fpga-basic/untracked_test_file.txt
+    - git branch -D "$BRANCH_NAME" || true
+    - git branch -D "${BRANCH_NAME}_post-synth" || true
+    - rm -rf tests/fpga-basic/build
+
+    - 'echo "=== Scenario 2: Modified tracked file dirty build ==="'
+    - 'echo "// Git integration test modification" >> README.md'
+
+    # Run build up to synth
+    - ${ENV_SCRIPT} /bin/sh build.sh -i -b tests/fpga-basic -e synth
+
+    # 2a. Validate folder name has '-dirty' suffix
+    - BUILD_DIR=$(find tests/fpga-basic/build -maxdepth 1 -mindepth 1 -type d -name "*_g*-dirty" | head -n 1)
+    - 'test -n "$BUILD_DIR" || (echo "ERROR: Build directory missing -dirty suffix!" && exit 1)'
+
+    # 2b. Validate output artifact has -2 BC-flag suffix
+    - XSA_FILE=$(find "$BUILD_DIR" -name "*_g*-2*.xsa" -o -name "*_g*-2*.bit" | head -n 1)
+    - 'test -n "$XSA_FILE" || (echo "ERROR: Generated artifact missing -2 BC-flag suffix!" && exit 1)'
+
+    # 2c. Find the temporary build branch created by Pre-Synthesis
+    - BRANCH_NAME=$(git branch --list "vbs_*" --format="%(refname:short)" | grep -v "_post-synth" | head -n 1)
+    - 'test -n "$BRANCH_NAME" || (echo "ERROR: Temporary build branch was not created!" && exit 1)'
+    - 'echo "Found temporary build branch: $BRANCH_NAME"'
+
+    # 2d. Validate file modification is inside the temporary branch
+    - >-
+      git diff HEAD "$BRANCH_NAME" -- README.md | grep -q "Git integration test modification" || 
+      (echo "ERROR: Modification not found on branch $BRANCH_NAME!" && exit 1)
+
+    # Cleanup scenario 2
+    - git checkout -- README.md
+    - git branch -D "$BRANCH_NAME" || true
+    - git branch -D "${BRANCH_NAME}_post-synth" || true
+    - rm -rf tests/fpga-basic/build
+
+    - 'echo "=== Scenario 3: Mid-synthesis modification (post-synth diff detection) ==="'
+
+    # 1. Spawn background process to modify README.md 150s after job start
+    - >-
+      (
+        echo "Background tamper monitor started, sleeping 150s...";
+        sleep 150;
+        echo "// Concurrent modification during synthesis" >> README.md;
+        echo "Background tamper monitor: Modified README.md during synthesis!";
+      ) &
+    - TAMPER_PID=$!
+
+    # 2. Run build expecting post-synth diff error (BC-flag 3)
+    - set +e
+    - ${ENV_SCRIPT} /bin/sh build.sh -i -b tests/fpga-basic -e synth
+    - BUILD_EXIT_CODE=$?
+    - set -e
+
+    # 3. Cleanup background process
+    - kill $TAMPER_PID 2>/dev/null || true
+
+    # 3a. Validate that build reported post-synthesis Git error in log
+    - LOG_FILE=$(find tests/fpga-basic/build -name "vivado.log" | head -n 1)
+    - 'test -f "$LOG_FILE" || (echo "ERROR: vivado.log not found in tests/fpga-basic/build!" && exit 1)'
+    - >-
+      grep -qE "(Pre/post synthesis GIT status do not match|Detected post synthesis GIT diff)" "$LOG_FILE" || 
+      (echo "ERROR: Post synthesis GIT error was not logged!" && exit 1)
+
+    # 3b. Verify log parser detects expected VBS error count (1 error)
+    - python3 ${LOG_PARSER_SCRIPT} "$LOG_FILE" -o issue_report.json --vbs-errors 1 --vivado-errors 0 --vivado-cwarns 0
+
+    # Cleanup scenario 3
+    - git checkout -- README.md
+    - BRANCH_NAME=$(git branch --list "vbs_*" --format="%(refname:short)" | grep -v "_post-synth" | head -n 1)
+    - test -n "$BRANCH_NAME" && git branch -D "$BRANCH_NAME" || true
+    - test -n "$BRANCH_NAME" && git branch -D "${BRANCH_NAME}_post-synth" || true
+    - rm -rf tests/fpga-basic/build
