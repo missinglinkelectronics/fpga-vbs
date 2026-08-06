@@ -209,3 +209,54 @@ test_git_integration_tamper:
     expire_in: 5 days
   script:
     - bash tests/scripts/test_git_integration_tamper.sh
+
+test_git_integration_untracked_submodule:
+  stage: test
+  timeout: 30m
+  parallel:
+    matrix:
+      - ENV_SCRIPT: vitis-v2026.1.sh
+  artifacts:
+    when: always
+    reports:
+      codequality: issue_report.json
+    paths:
+      - tests/fpga-basic/build/**/*.log
+      - issue_report.json
+    expire_in: 5 days
+  script:
+    - bash tests/scripts/test_git_integration_untracked_submodule.sh
+
+test_git_integration_modified_submodule:
+  stage: test
+  timeout: 30m
+  parallel:
+    matrix:
+      - ENV_SCRIPT: vitis-v2026.1.sh
+  artifacts:
+    when: always
+    reports:
+      codequality: issue_report.json
+    paths:
+      - tests/fpga-basic/build/**/*.log
+      - issue_report.json
+    expire_in: 5 days
+  script:
+    - bash tests/scripts/test_git_integration_modified_submodule.sh
+
+test_git_integration_tamper_submodule:
+  stage: test
+  timeout: 30m
+  parallel:
+    matrix:
+      - ENV_SCRIPT: vitis-v2026.1.sh
+  artifacts:
+    when: always
+    reports:
+      codequality: issue_report.json
+    paths:
+      - tests/fpga-basic/build/**/*.log
+      - issue_report.json
+    expire_in: 5 days
+  script:
+    - bash tests/scripts/test_git_integration_tamper_submodule.sh
