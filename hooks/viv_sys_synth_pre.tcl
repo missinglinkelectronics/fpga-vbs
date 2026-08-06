@@ -2,7 +2,7 @@
 #
 ################################################################################
 ##
-## Copyright 2015-2019 Missing Link Electronics, Inc.
+## Copyright 2015-2026 Missing Link Electronics, Inc.
 ##
 ## Licensed under the Apache License, Version 2.0 (the "License");
 ## you may not use this file except in compliance with the License.
@@ -61,14 +61,15 @@ set git_err      [dict get $bvars "GITERR"]
 set bstamp [time_stamp]
 puts "INFO: \[VBS 35] Build stamp is $bstamp"
 
-if {[string equal $flv_name "."]} {
-    set flv_name ""
+# Sanitize flavor name (replace dots/underscores with hyphens and trim trailing delimiters)
+if {[string equal $flv_name "."] || $flv_name eq ""} {
+    set flv_str ""
 } else {
-    append flv_name "_"
+    set flv_str "[string trimright [regsub -all {[_.]+} $flv_name "-"] "-"]-"
 }
 
-set dict_name [file rootname [file tail $dict_name]]
-set build_branch "vbs_${flv_name}${dict_name}_${bstamp}"
+set dict_str [file rootname [file tail $dict_name]]
+set build_branch "vbs-${flv_str}${dict_str}-${bstamp}"
 
 set cur_dir [pwd]
 cd $base_dir

@@ -184,15 +184,16 @@ proc git_stamp_submodules {build_branch repo_root} {
         return $dirty_submodules
     }
 
-    # Extract base build stamp (stripping suffixes like _post-synth or _post-impl)
-    set parts [split $build_branch "_"]
-    if {[llength $parts] >= 3} {
-        set base_stamp "[lindex $parts 0]_[lindex $parts 1]_[lindex $parts 2]"
+    # Normalize build_branch prefix
+    if {[string match "vbs-*" $build_branch]} {
+        set full_branch $build_branch
     } else {
-        set base_stamp $build_branch
+        set full_branch "vbs-${build_branch}"
     }
-    set base_sub_branch "vbs_${base_stamp}"
-    set step_sub_branch "vbs_${build_branch}"
+
+    # Strip post-synth/post-impl stage suffixes to get the base pre-synth branch name
+    set base_sub_branch [regsub -- {-post-.*$} $full_branch ""]
+    set step_sub_branch $full_branch
 
     set lines [split [string trim $sub_output] "\n"]
     foreach line $lines {
@@ -204,7 +205,6 @@ proc git_stamp_submodules {build_branch repo_root} {
             set sub_path [lindex $tokens 1]
 
             if {[file exists $sub_path]} {
-                # Determine top-level relative path for git update-index
                 set abs_sub [file normalize $sub_path]
                 set abs_root [file normalize $repo_root]
 
@@ -243,17 +243,17 @@ proc git_stamp_submodules {build_branch repo_root} {
 
                         # Stage and commit inside submodule using step-specific branch tag
                         catch {exec git -C $sub_path add -A .}
-                        if {[catch {exec git -C $sub_path commit -m "VBS Submodule Build: $build_branch"} err]} {
+                        if {[catch {exec git -C $sub_path commit -m "VBS Submodule Build: $step_sub_branch"} err]} {
                             puts "WARNING: \[VBS 21] Failed to commit submodule '$sub_path': $err"
                         } else {
                             catch {exec git -C $sub_path rev-parse --verify HEAD} new_sub_head
                             set new_sub_head [string trim $new_sub_head]
 
-                            # Tag step-specific branch ONLY
+                            # Tag step-specific branch
                             catch {exec git -C $sub_path branch -f $step_sub_branch}
 
-                            # Only tag base branch if this is the initial Pre-Synthesis run (base_stamp == build_branch)
-                            if {$base_stamp eq $build_branch} {
+                            # Tag base branch if this is the initial Pre-Synthesis run
+                            if {$base_sub_branch eq $step_sub_branch} {
                                 catch {exec git -C $sub_path branch -f $base_sub_branch}
                             }
 
@@ -305,6 +305,13 @@ proc git_stamp {build_branch} {
         }
     }
 
+    # Normalize build_branch prefix cleanly
+    if {[string match "vbs-*" $build_branch]} {
+        set full_branch $build_branch
+    } else {
+        set full_branch "vbs-${build_branch}"
+    }
+
     puts "INFO: \[VBS 21] Looking for changes and untracked files ..."
 
     if {[catch {exec git status -s -- :/} result_status]} {
@@ -323,8 +330,8 @@ proc git_stamp {build_branch} {
     if {$num_changes > 0} {
         puts "INFO: \[VBS 21] $num_changes changed/untracked files or submodules in working directory."
 
-        # Prepare submodule commit SHAs
-        set dirty_submodules [git_stamp_submodules $build_branch $repo_root]
+        # Prepare submodule commit SHAs using normalized hyphenated branch name
+        set dirty_submodules [git_stamp_submodules $full_branch $repo_root]
 
         puts "INFO: \[VBS 21] Detaching parent from $curbranch ..."
         if {[catch {exec git checkout --detach -q} result]} {
@@ -351,13 +358,13 @@ proc git_stamp {build_branch} {
         }
 
         puts "INFO: \[VBS 21] Committing all workdir changes ..."
-        if {[catch {exec git commit -m "${build_branch}"} result]} {
+        if {[catch {exec git commit -m "${full_branch}"} result]} {
             puts "ERROR: \[VBS 21] Git commit failed ($result)."
             return [git_undo "${curbranch}" 2 $dirty_submodules]
         }
 
-        puts "INFO: \[VBS 21] Creating new branch ${build_branch} ..."
-        if {[catch {exec git branch -f "${build_branch}"} result]} {
+        puts "INFO: \[VBS 21] Creating new branch ${full_branch} ..."
+        if {[catch {exec git branch -f "${full_branch}"} result]} {
             puts "ERROR: \[VBS 21] Branch creation failed ($result)."
             return [git_undo "${curbranch}" 2 $dirty_submodules]
         }

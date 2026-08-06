@@ -114,6 +114,14 @@ if {![info exists xpr_name]} {
 set project_dir  "[pwd]"
 set flavor_dir   "[file normalize "${base_dir}/${flavor}"]"
 
+# If no explicit flavor was passed (flavor is "." or empty), resolve flavor
+# name to the directory name of base_dir so FLAV is never empty or "."
+if {$flavor eq "." || $flavor eq ""} {
+    set flavor_name [file tail [file normalize $base_dir]]
+} else {
+    set flavor_name $flavor
+}
+
 ################################################################################
 ## Build helpers
 
@@ -145,7 +153,7 @@ dict set bvars_dict GITERR 0
 
 # Store script arguments
 dict set bvars_dict BDIR  $base_dir
-dict set bvars_dict FLAV  $flavor
+dict set bvars_dict FLAV  $flavor_name
 dict set bvars_dict XPR   $xpr_name
 dict set bvars_dict CDICT $config_dict_name
 dict set bvars_dict SSTEP $start_step

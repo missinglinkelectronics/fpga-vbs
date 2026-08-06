@@ -2,7 +2,7 @@
 #
 ################################################################################
 ##
-## Copyright 2018-2019 Missing Link Electronics, Inc.
+## Copyright 2018-2026 Missing Link Electronics, Inc.
 ##
 ## Licensed under the Apache License, Version 2.0 (the "License");
 ## you may not use this file except in compliance with the License.
@@ -61,7 +61,7 @@ set bctype_pre   [dict get $bvars "BCTYPE"]
 ## Create post synthesis build commit branch and check diff to pre synthesis
 ## branch
 
-set build_branch_ps "${build_branch}_post-synth"
+set build_branch_ps "${build_branch}-post-synth"
 
 set cur_dir [pwd]
 cd $base_dir
