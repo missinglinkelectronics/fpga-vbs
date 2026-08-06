@@ -11,20 +11,9 @@ test_axi4-dummy-master_packaging:
   parallel:
     matrix:
       - ENV_SCRIPT: vitis-v2020.2.sh
-        REASON: "The exact Vivado version listed in the dict file"
-        EXTRA_ARGS: "-c ipxact.dict" # no -i should be needed
       - ENV_SCRIPT: vitis-v2021.2.sh
-        REASON: "A rather old Vivado version"
-        EXTRA_ARGS: "-i -c ipxact.dict"
       - ENV_SCRIPT: vitis-v2025.2.sh
-        REASON: "A recent Vivado version widely used"
-        EXTRA_ARGS: "-i -c ipxact.dict"
-      - ENV_SCRIPT: vitis-v2025.2-ksb1.sh
-        REASON: "A Vivado version with extra patches"
-        EXTRA_ARGS: "-i -c ipxact-v2025.2-ksb1.dict"
       - ENV_SCRIPT: vitis-v2026.1.sh
-        REASON: "The latest Vivado version"
-        EXTRA_ARGS: "-i -c ipxact.dict"
   artifacts:
     when: always
     reports:
@@ -34,19 +23,24 @@ test_axi4-dummy-master_packaging:
       - issue_report.json
     expire_in: 5 days
   script:
-    - cd tests/axi4-dummy-master && ${ENV_SCRIPT} ../../build.sh -e package ${EXTRA_ARGS}
-    - cd ../..
+    - bash tests/scripts/test_axi4-dummy-master_packaging.sh
 
-    # Locate generated Vivado log file
-    - LOG_FILE=$(find tests/axi4-dummy-master/build -name "vivado.log" | head -n 1)
-    - 'test -f "$LOG_FILE" || (echo "ERROR: vivado.log not found in tests/axi4-dummy-master/build!" && false)'
-
-    # Parse log and do assertions
-    - >-
-      python3 ${LOG_PARSER_SCRIPT} "$LOG_FILE" -o issue_report.json
-      --vbs-errors 0
-      --vivado-errors 0
-      --vivado-cwarns 0
+test_axi4-dummy-master_patch_level:
+  stage: test
+  timeout: 5m
+  parallel:
+    matrix:
+      - ENV_SCRIPT: vitis-v2025.2-ksb1.sh
+  artifacts:
+    when: always
+    reports:
+      codequality: issue_report.json
+    paths:
+      - tests/axi4-dummy-master/build/**/*.log
+      - issue_report.json
+    expire_in: 5 days
+  script:
+    - bash tests/scripts/test_axi4-dummy-master_patch_level.sh
 
 test_fpga-basic_bitstream:
   stage: test
@@ -66,36 +60,7 @@ test_fpga-basic_bitstream:
       - issue_report.json
     expire_in: 5 days
   script:
-    # Run bitstream generation
-    - >-
-      cd tests/fpga-basic && ${ENV_SCRIPT} ../../build.sh
-      -i
-      -e bit
-      -t tcl/report.tcl
-      -g BUILD_SH_GENERIC0=1
-      -g BUILD_SH_GENERIC1="TRUE"
-      -v BUILD_SH_DEFINE0=1
-      -v BUILD_SH_DEFINE1="TRUE"
-    - cd ../..
-
-    # Locate generated Vivado log file
-    - LOG_FILE=$(find tests/fpga-basic/build -name "vivado.log" | head -n 1)
-    - 'test -f "$LOG_FILE" || (echo "ERROR: vivado.log not found in tests/fpga-basic/build!" && false)'
-
-    # Parse log and do assertions
-    - >-
-      python3 ${LOG_PARSER_SCRIPT} "$LOG_FILE" -o issue_report.json
-      --vbs-errors 0
-      --vivado-errors 0
-      --vivado-cwarns 0
-      --assert-info "Running hook script: synth_pre.tcl"
-      --assert-info "Running hook script: synth_post0.tcl"
-      --assert-info "Running hook script: synth_post1.tcl"
-      --assert-info "GENERICS: EXAMPLE_GENERIC1=FALSE EXAMPLE_GENERIC0=TRUE BUILD_SH_GENERIC1=TRUE BUILD_SH_GENERIC0=1"
-      --assert-info "VERILOG_DEFINE: EXAMPLE_DEFINE1=TRUE EXAMPLE_DEFINE0=FALSE BUILD_SH_DEFINE1=TRUE BUILD_SH_DEFINE0=1"
-      --assert-info "VERILOG_SIM_DEFINE: EXAMPLE_SIM_DEFINE0=0 EXAMPLE_SIM_DEFINE1=1"
-      --assert-info "timing.xdc used in synth=1, impl=0"
-      --assert-info "axi4_dummy_master.vhd library=my_lib, filetype=VHDL 2019"
+    - bash tests/scripts/test_fpga-basic_bitstream.sh
 
 test_fpga-basic_incremental:
   stage: test
@@ -118,44 +83,7 @@ test_fpga-basic_incremental:
       - issue_report.json
     expire_in: 5 days
   script:
-    - 'echo "Running test: $REASON"'
-    - rm -rf ${CUSTOM_OUT_DIR}
-
-    # Step 1: Create Project Only (-e prj) into custom output folder
-    - 'echo "=== Step 1: prj ==="'
-    - ${ENV_SCRIPT} /bin/sh build.sh -i -b tests/fpga-basic -e prj -o custom_build_dir
-
-    # Locate project file created in step 1
-    - XPR_FILE=$(find ${CUSTOM_OUT_DIR} -name "*.xpr" | head -n 1)
-    - 'test -f "$XPR_FILE" || (echo "ERROR: .xpr file not found in ${CUSTOM_OUT_DIR}!" && exit 1)'
-    - 'echo "Found generated project: $XPR_FILE"'
-
-    # Step 2: Out-Of-Context Synthesis (-s prj -e synth_ooc)
-    - 'echo "=== Step 2: synth_ooc ==="'
-    - ${ENV_SCRIPT} /bin/sh build.sh -i -b tests/fpga-basic -s prj -e synth_ooc -x "${XPR_FILE}"
-
-    # Step 3: Top-level Synthesis (-s synth_ooc -e synth)
-    - 'echo "=== Step 3: synth ==="'
-    - ${ENV_SCRIPT} /bin/sh build.sh -i -b tests/fpga-basic -s synth_ooc -e synth -x "${XPR_FILE}"
-
-    # Step 4: Implementation (-s synth -e impl)
-    - 'echo "=== Step 4: impl ==="'
-    - ${ENV_SCRIPT} /bin/sh build.sh -i -b tests/fpga-basic -s synth -e impl -x "${XPR_FILE}"
-
-    # Step 5: Bitstream / Device Image Generation (-s impl -e bit)
-    - 'echo "=== Step 5: bit ==="'
-    - ${ENV_SCRIPT} /bin/sh build.sh -i -b tests/fpga-basic -s impl -e bit -x "${XPR_FILE}"
-
-    # Locate generated Vivado log file
-    - LOG_FILE=$(find ${CUSTOM_OUT_DIR} -name "vivado.log" | head -n 1)
-    - 'test -f "$LOG_FILE" || (echo "ERROR: vivado.log not found in ${CUSTOM_OUT_DIR}!" && false)'
-
-    # Parse log and do assertions across all incremental steps
-    - >-
-      python3 ${LOG_PARSER_SCRIPT} "$LOG_FILE" -o issue_report.json
-      --vbs-errors 0
-      --vivado-errors 0
-      --vivado-cwarns 0
+    - bash tests/scripts/test_fpga-basic_incremental.sh
 
 test_simulation_scripts:
   stage: test
@@ -175,25 +103,7 @@ test_simulation_scripts:
       - issue_report.json
     expire_in: 5 days
   script:
-    # Generate simulation scripts
-    - ${ENV_SCRIPT} /bin/sh build.sh -i -b tests/simulation -e sim_prep
-    - SIM_EXE=$(find tests/simulation/build -name "run.sh" | head -n 1)
-    - 'test -f "$SIM_EXE" || (echo "ERROR: run.sh not found in tests/simulation/build!" && false)'
-
-    # Run simulation script
-    - pushd $(dirname ${SIM_EXE}) && ${ENV_SCRIPT} ./run.sh && popd
-
-    # Locate generated Vivado log file
-    - LOG_FILE=$(find tests/simulation/build -name "simulate.log" | head -n 1)
-    - 'test -f "$LOG_FILE" || (echo "ERROR: simulate.log not found in tests/simulation/build!" && false)'
-
-    # Parse log and do assertions
-    - >-
-      python3 ${LOG_PARSER_SCRIPT} "$LOG_FILE" -o issue_report.json
-      --vbs-errors 0
-      --vivado-errors 0
-      --vivado-cwarns 0
-      --assert-info "SIMULATION PASSED"
+    - bash tests/scripts/test_simulation_scripts.sh
 
 test_simulation:
   stage: test
@@ -213,24 +123,14 @@ test_simulation:
       - issue_report.json
     expire_in: 5 days
   script:
-    # Run simulation
-    - ${ENV_SCRIPT} /bin/sh build.sh -i -b tests/simulation -e sim
-
-    # Locate generated Vivado log file
-    - LOG_FILE=$(find tests/simulation/build -name "vivado.log" | head -n 1)
-    - 'test -f "$LOG_FILE" || (echo "ERROR: vivado.log not found in tests/simulation/build!" && false)'
-
-    # Parse log and do assertions
-    - >-
-      python3 ${LOG_PARSER_SCRIPT} "$LOG_FILE" -o issue_report.json
-      --vbs-errors 0
-      --vivado-errors 0
-      --vivado-cwarns 0
-      --assert-info "SIMULATION PASSED"
+    - bash tests/scripts/test_simulation.sh
 
 test_add-flavor_subfolders:
   stage: test
   timeout: 10m
+  parallel:
+      matrix:
+        - ENV_SCRIPT: vitis-v2026.1.sh
   artifacts:
     when: always
     reports:
@@ -240,55 +140,14 @@ test_add-flavor_subfolders:
       - issue_report.json
     expire_in: 5 days
   script:
-    - 'echo "=== Step 1: Generating flavor0 and flavor1 subfolders ==="'
-    - ./add_flavor.sh -p project.cfg -b tests/add-flavor flavor0
-    - ./add_flavor.sh -p project.cfg -b tests/add-flavor flavor1
-
-    - 'echo "=== Step 2: Validating directory tree and generated files for flavor0 ==="'
-    - test -f tests/add-flavor/flavor0/config.dict
-    - test -f tests/add-flavor/flavor0/constr/misc.xdc
-    - test -f tests/add-flavor/flavor0/constr/pinout.xdc
-    - test -f tests/add-flavor/flavor0/constr/timing.xdc
-    - test -f tests/add-flavor/flavor0/filelists/constr.f
-    - test -f tests/add-flavor/flavor0/filelists/hdl.f
-    - test -f tests/add-flavor/flavor0/filelists/hdl_include.f
-    - test -f tests/add-flavor/flavor0/filelists/ip.f
-    - test -f tests/add-flavor/flavor0/filelists/ip_include.f
-    - test -f tests/add-flavor/flavor0/filelists/ip_tcl.f
-    - test -f tests/add-flavor/flavor0/filelists/sim.f
-    - test -f tests/add-flavor/flavor0/filelists/sim_include.f
-    - test -f tests/add-flavor/flavor0/hdl/fpga_top.v
-    - test -d tests/add-flavor/flavor0/ip
-    - test -d tests/add-flavor/flavor0/sim
-
-    - 'echo "=== Step 3: Validating directory tree and generated files for flavor1 ==="'
-    - test -f tests/add-flavor/flavor1/config.dict
-    - test -f tests/add-flavor/flavor1/constr/misc.xdc
-    - test -f tests/add-flavor/flavor1/constr/pinout.xdc
-    - test -f tests/add-flavor/flavor1/constr/timing.xdc
-    - test -f tests/add-flavor/flavor1/filelists/constr.f
-    - test -f tests/add-flavor/flavor1/filelists/hdl.f
-    - test -f tests/add-flavor/flavor1/filelists/hdl_include.f
-    - test -f tests/add-flavor/flavor1/filelists/ip.f
-    - test -f tests/add-flavor/flavor1/filelists/ip_include.f
-    - test -f tests/add-flavor/flavor1/filelists/ip_tcl.f
-    - test -f tests/add-flavor/flavor1/filelists/sim.f
-    - test -f tests/add-flavor/flavor1/filelists/sim_include.f
-    - test -f tests/add-flavor/flavor1/hdl/fpga_top.v
-    - test -d tests/add-flavor/flavor1/ip
-    - test -d tests/add-flavor/flavor1/sim
-
-    - 'echo "=== Step 4: Validating project creation via build.sh ==="'
-    - vitis-v2026.1.sh /bin/sh build.sh -b tests/add-flavor/flavor0 -e prj
-    - vitis-v2026.1.sh /bin/sh build.sh -b tests/add-flavor/flavor1 -e prj
-
-    # Parse logs generated during prj creation
-    - LOG_FILES=$(find tests/add-flavor -name "vivado.log")
-    - 'for f in $LOG_FILES; do python3 ${LOG_PARSER_SCRIPT} "$f" -o issue_report.json --vbs-errors 0 --vivado-errors 0 --vivado-cwarns 0; done'
+    - bash tests/scripts/test_add-flavor_subfolders.sh
 
 test_add-flavor_flat:
   stage: test
   timeout: 10m
+  parallel:
+    matrix:
+      - ENV_SCRIPT: vitis-v2026.1.sh
   artifacts:
     when: always
     reports:
@@ -298,39 +157,9 @@ test_add-flavor_flat:
       - issue_report.json
     expire_in: 5 days
   script:
-    - 'echo "=== Step 1: Generating flat flavor ==="'
-    - ./add_flavor.sh -p project.cfg -b tests/add-flavor
+    - bash tests/scripts/test_add-flavor_flat.sh
 
-    - 'echo "=== Step 2: Validating flat directory tree and generated files ==="'
-    - test -f tests/add-flavor/config.dict
-    - test -f tests/add-flavor/constr/misc.xdc
-    - test -f tests/add-flavor/constr/pinout.xdc
-    - test -f tests/add-flavor/constr/timing.xdc
-    - test -f tests/add-flavor/filelists/constr.f
-    - test -f tests/add-flavor/filelists/hdl.f
-    - test -f tests/add-flavor/filelists/hdl_include.f
-    - test -f tests/add-flavor/filelists/ip.f
-    - test -f tests/add-flavor/filelists/ip_include.f
-    - test -f tests/add-flavor/filelists/ip_tcl.f
-    - test -f tests/add-flavor/filelists/sim.f
-    - test -f tests/add-flavor/filelists/sim_include.f
-    - test -f tests/add-flavor/hdl/fpga_top.v
-    - test -d tests/add-flavor/ip
-    - test -d tests/add-flavor/sim
-
-    - 'echo "=== Step 3: Validating project creation via build.sh ==="'
-    - vitis-v2026.1.sh /bin/sh build.sh -b tests/add-flavor -e prj
-
-    # Parse log generated during prj creation
-    - LOG_FILE=$(find tests/add-flavor/build -name "vivado.log" | head -n 1)
-    - 'test -f "$LOG_FILE" || (echo "ERROR: vivado.log not found in tests/add-flavor/build!" && false)'
-    - >-
-      python3 ${LOG_PARSER_SCRIPT} "$LOG_FILE" -o issue_report.json
-      --vbs-errors 0
-      --vivado-errors 0
-      --vivado-cwarns 0
-
-test_git_integration:
+test_git_integration_untracked:
   stage: test
   timeout: 30m
   parallel:
@@ -345,105 +174,38 @@ test_git_integration:
       - issue_report.json
     expire_in: 5 days
   script:
-    - 'echo "=== Scenario 1: Untracked file dirty build ==="'
-    - touch tests/fpga-basic/untracked_test_file.txt
+    - bash tests/scripts/test_git_integration_untracked.sh
 
-    # Run build up to synth
-    - ${ENV_SCRIPT} /bin/sh build.sh -i -b tests/fpga-basic -e synth
+test_git_integration_modified:
+  stage: test
+  timeout: 30m
+  parallel:
+    matrix:
+      - ENV_SCRIPT: vitis-v2026.1.sh
+  artifacts:
+    when: always
+    reports:
+      codequality: issue_report.json
+    paths:
+      - tests/fpga-basic/build/**/*.log
+      - issue_report.json
+    expire_in: 5 days
+  script:
+    - bash tests/scripts/test_git_integration_modified.sh
 
-    # 1a. Validate folder name has '-dirty' suffix
-    - BUILD_DIR=$(find tests/fpga-basic/build -maxdepth 1 -mindepth 1 -type d -name "*_g*-dirty" | head -n 1)
-    - 'test -n "$BUILD_DIR" || (echo "ERROR: Build directory missing -dirty suffix!" && exit 1)'
-    - 'echo "Found dirty build directory: $BUILD_DIR"'
-
-    # 1b. Validate output artifact has -2 BC-flag suffix
-    - XSA_FILE=$(find "$BUILD_DIR" -name "*_g*-2*.xsa" -o -name "*_g*-2*.bit" | head -n 1)
-    - 'test -n "$XSA_FILE" || (echo "ERROR: Generated artifact missing -2 BC-flag suffix!" && exit 1)'
-    - 'echo "Found dirty build artifact: $XSA_FILE"'
-
-    # 1c. Find the temporary build branch created by Pre-Synthesis (excluding _post-synth)
-    - BRANCH_NAME=$(git branch --list "vbs_*" --format="%(refname:short)" | grep -v "_post-synth" | head -n 1)
-    - 'test -n "$BRANCH_NAME" || (echo "ERROR: Temporary build branch was not created!" && exit 1)'
-    - 'echo "Found temporary build branch: $BRANCH_NAME"'
-
-    # 1d. Validate untracked file was committed onto the temporary branch
-    - >-
-      git ls-tree -r "$BRANCH_NAME" --name-only | grep -q "tests/fpga-basic/untracked_test_file.txt" || 
-      (echo "ERROR: Untracked file not found in branch $BRANCH_NAME!" && exit 1)
-
-    # 1e. Validate log assertions with vivado_log_parser.py
-    - python3 ${LOG_PARSER_SCRIPT} "$BUILD_DIR/vivado.log" -o issue_report.json --vbs-errors 0 --vivado-errors 0 --vivado-cwarns 0 --assert-info "Build commit is"
-
-    # Cleanup scenario 1
-    - rm -f tests/fpga-basic/untracked_test_file.txt
-    - git branch -D "$BRANCH_NAME" || true
-    - git branch -D "${BRANCH_NAME}_post-synth" || true
-    - rm -rf tests/fpga-basic/build
-
-    - 'echo "=== Scenario 2: Modified tracked file dirty build ==="'
-    - 'echo "// Git integration test modification" >> README.md'
-
-    # Run build up to synth
-    - ${ENV_SCRIPT} /bin/sh build.sh -i -b tests/fpga-basic -e synth
-
-    # 2a. Validate folder name has '-dirty' suffix
-    - BUILD_DIR=$(find tests/fpga-basic/build -maxdepth 1 -mindepth 1 -type d -name "*_g*-dirty" | head -n 1)
-    - 'test -n "$BUILD_DIR" || (echo "ERROR: Build directory missing -dirty suffix!" && exit 1)'
-
-    # 2b. Validate output artifact has -2 BC-flag suffix
-    - XSA_FILE=$(find "$BUILD_DIR" -name "*_g*-2*.xsa" -o -name "*_g*-2*.bit" | head -n 1)
-    - 'test -n "$XSA_FILE" || (echo "ERROR: Generated artifact missing -2 BC-flag suffix!" && exit 1)'
-
-    # 2c. Find the temporary build branch created by Pre-Synthesis
-    - BRANCH_NAME=$(git branch --list "vbs_*" --format="%(refname:short)" | grep -v "_post-synth" | head -n 1)
-    - 'test -n "$BRANCH_NAME" || (echo "ERROR: Temporary build branch was not created!" && exit 1)'
-    - 'echo "Found temporary build branch: $BRANCH_NAME"'
-
-    # 2d. Validate file modification is inside the temporary branch
-    - >-
-      git diff HEAD "$BRANCH_NAME" -- README.md | grep -q "Git integration test modification" || 
-      (echo "ERROR: Modification not found on branch $BRANCH_NAME!" && exit 1)
-
-    # Cleanup scenario 2
-    - git checkout -- README.md
-    - git branch -D "$BRANCH_NAME" || true
-    - git branch -D "${BRANCH_NAME}_post-synth" || true
-    - rm -rf tests/fpga-basic/build
-
-    - 'echo "=== Scenario 3: Mid-synthesis modification (post-synth diff detection) ==="'
-
-    # 1. Spawn background process to modify README.md 150s after job start
-    - >-
-      (
-        echo "Background tamper monitor started, sleeping 150s...";
-        sleep 150;
-        echo "// Concurrent modification during synthesis" >> README.md;
-        echo "Background tamper monitor: Modified README.md during synthesis!";
-      ) &
-    - TAMPER_PID=$!
-
-    # 2. Run build expecting post-synth diff error (BC-flag 3)
-    - set +e
-    - ${ENV_SCRIPT} /bin/sh build.sh -i -b tests/fpga-basic -e synth
-    - BUILD_EXIT_CODE=$?
-    - set -e
-
-    # 3. Cleanup background process
-    - kill $TAMPER_PID 2>/dev/null || true
-
-    # 3a. Validate that build reported post-synthesis Git error in log
-    - LOG_FILE=$(find tests/fpga-basic/build -name "vivado.log" | head -n 1)
-    - 'test -f "$LOG_FILE" || (echo "ERROR: vivado.log not found in tests/fpga-basic/build!" && exit 1)'
-    - >-
-      grep -qE "(Pre/post synthesis GIT status do not match|Detected post synthesis GIT diff)" "$LOG_FILE" || 
-      (echo "ERROR: Post synthesis GIT error was not logged!" && exit 1)
-
-    # 3b. Verify log parser detects expected VBS error count (1 error)
-    - python3 ${LOG_PARSER_SCRIPT} "$LOG_FILE" -o issue_report.json --vbs-errors 1 --vivado-errors 0 --vivado-cwarns 0
-
-    # Cleanup scenario 3
-    - git checkout -- README.md
-    - BRANCH_NAME=$(git branch --list "vbs_*" --format="%(refname:short)" | grep -v "_post-synth" | head -n 1)
-    - test -n "$BRANCH_NAME" && git branch -D "$BRANCH_NAME" || true
-    - test -n "$BRANCH_NAME" && git branch -D "${BRANCH_NAME}_post-synth" || true
-    - rm -rf tests/fpga-basic/build
+test_git_integration_tamper:
+  stage: test
+  timeout: 30m
+  parallel:
+    matrix:
+      - ENV_SCRIPT: vitis-v2026.1.sh
+  artifacts:
+    when: always
+    reports:
+      codequality: issue_report.json
+    paths:
+      - tests/fpga-basic/build/**/*.log
+      - issue_report.json
+    expire_in: 5 days
+  script:
+    - bash tests/scripts/test_git_integration_tamper.sh
