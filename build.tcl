@@ -1077,24 +1077,40 @@ if {$start_step == $build_steps(package) || \
 
         # Create git branch with all uncommitted changes
         cd $base_dir
-        set build_branch "build_${flv_name}${dict_name}_${bstamp}"
-        set gstamp [list "ERROR" 3]
-        if {[set error [catch {git_exists}]]} {
-            if {$error == 2} {
-                puts "INFO: \[VBS 20] Skipping GIT build commit"
-                set gstamp [list "" 0]
-            }
-        } elseif {[catch {git_stamp "${build_branch}"} result]} {
-            puts "WARNING: \[VBS 20] Failed packaging GIT build commit"
+        set build_branch "build-${flv_name}"
+        if {[string length $dict_name] > 0} {
+            append build_branch "-${dict_name}"
+        }
+        append build_branch "-${bstamp}"
+
+        set gstamp [list "WARNING" 2]
+        set git_code [catch {git_exists}]
+        if {$git_code == 2} {
+            # Git integration disabled or not in a git repo
+            set gstamp [list "" 0]
+        } elseif {$git_code != 0} {
+            # git_exists encountered an error
+            set gstamp [list "WARNING" 2]
         } else {
-            set gstamp $result
+            # Git repository exists, attempt staging/stamping
+            if {[catch {git_stamp "${build_branch}"} result]} {
+                puts "CRITICAL WARNING: \[VBS 20\] Failed packaging Git build commit: $result"
+                set gstamp [list "WARNING" 2]
+            } else {
+                set gstamp $result
+            }
         }
         lassign $gstamp bcommit bctype
+
+        dict set bvars_dict BCOMMIT $bcommit
+        dict set bvars_dict BCTYPE  $bctype
+
         if {$bctype == 3} {
-            puts "ERROR: [VBS] Failed GIT build commit. Continue packaging ..."
+            puts "CRITICAL WARNING: \[VBS 20\] GIT build commit failed, but IP packaging completed."
             set git_err [dict get $bvars_dict "GITERR"]
             dict set bvars_dict GITERR [expr {$git_err + 1}]
         }
+
         cd $project_dir
 
         # Set output file name
