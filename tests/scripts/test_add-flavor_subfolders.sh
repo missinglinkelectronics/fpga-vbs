@@ -77,6 +77,7 @@ for f in ${LOG_FILES}; do
     python3 "${LOG_PARSER_SCRIPT}" "${f}" \
         -o issue_report.json \
         --vbs-errors 0 \
+        --vbs-cwarns 0 \
         --vivado-errors 0 \
         --vivado-cwarns 0
 done

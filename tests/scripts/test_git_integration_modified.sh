@@ -63,6 +63,7 @@ fi
 python3 "${LOG_PARSER_SCRIPT}" "${LOG_FILE}" \
     -o issue_report.json \
     --vbs-errors 0 \
+    --vbs-cwarns 1 \
     --vivado-errors 0 \
     --vivado-cwarns 0 \
     --assert-info "Build commit is"

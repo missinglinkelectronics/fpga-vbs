@@ -57,7 +57,7 @@ def parse_log_file(filepath):
 def verify_exact_counts(entries, args):
     """Verify that message counts for VBS and Vivado match expected exact values."""
     counts = {
-        "vbs_info": 0, "vbs_warn": 0, "vbs_err": 0,
+        "vbs_info": 0, "vbs_warn": 0, "vbs_cwarn": 0, "vbs_err": 0,
         "viv_info": 0, "viv_warn": 0, "viv_cwarn": 0, "viv_err": 0,
     }
 
@@ -66,8 +66,10 @@ def verify_exact_counts(entries, args):
         if entry["is_vbs"]:
             if sev == "INFO":
                 counts["vbs_info"] += 1
-            elif sev in ("WARNING", "CRITICAL WARNING"):
+            elif sev == "WARNING":
                 counts["vbs_warn"] += 1
+            elif sev == "CRITICAL WARNING":
+                counts["vbs_cwarn"] += 1
             elif sev == "ERROR":
                 counts["vbs_err"] += 1
         else:
@@ -87,6 +89,7 @@ def verify_exact_counts(entries, args):
     print("LOG ANALYSIS SUMMARY")
     print("=" * 60)
     print(f"  VBS Errors       : {counts['vbs_err']} (Expected: {args.vbs_errors})")
+    print(f"  VBS Criticals    : {counts['vbs_cwarn']} (Expected: {args.vbs_cwarns})")
     print(f"  VBS Warnings     : {counts['vbs_warn']} (Expected: {vbs_warn_str})")
     print(f"  Vivado Errors    : {counts['viv_err']} (Expected: {args.vivado_errors})")
     print(f"  Vivado Criticals : {counts['viv_cwarn']} (Expected: {args.vivado_cwarns})")
@@ -96,6 +99,9 @@ def verify_exact_counts(entries, args):
     failed = False
     if counts["vbs_err"] != args.vbs_errors:
         print(f"Assertion Failure: VBS Errors count mismatch (Expected {args.vbs_errors}, got {counts['vbs_err']})", file=sys.stderr)
+        failed = True
+    if counts["vbs_cwarn"] != args.vbs_cwarns:
+        print(f"Assertion Failure: VBS Critical Warnings count mismatch (Expected {args.vbs_cwarns}, got {counts['vbs_cwarn']})", file=sys.stderr)
         failed = True
     if args.vbs_warnings is not None and counts["vbs_warn"] != args.vbs_warnings:
         print(f"Assertion Failure: VBS Warnings count mismatch (Expected {args.vbs_warnings}, got {counts['vbs_warn']})", file=sys.stderr)
@@ -180,6 +186,7 @@ def main():
 
     # Exact count threshold arguments
     parser.add_argument("--vbs-errors", type=int, default=0, help="Exact expected VBS errors (default: 0)")
+    parser.add_argument("--vbs-cwarns", type=int, default=0, help="Exact expected VBS critical warnings (default: 0)")
     parser.add_argument("--vbs-warnings", type=int, default=None, help="Exact expected VBS warnings (default: ignore)")
     parser.add_argument("--vivado-errors", type=int, default=0, help="Exact expected Vivado errors (default: 0)")
     parser.add_argument("--vivado-cwarns", type=int, default=0, help="Exact expected Vivado critical warnings (default: 0)")

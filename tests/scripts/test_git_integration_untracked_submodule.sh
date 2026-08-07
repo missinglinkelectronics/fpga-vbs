@@ -101,6 +101,7 @@ echo "Verified: Main repo branch ${PARENT_BRANCH} correctly references submodule
 python3 "${LOG_PARSER_SCRIPT}" "${BUILD_DIR}/vivado.log" \
     -o issue_report.json \
     --vbs-errors 0 \
+    --vbs-cwarns 1 \
     --vivado-errors 0 \
     --vivado-cwarns 0 \
     --assert-info "Build commit is"

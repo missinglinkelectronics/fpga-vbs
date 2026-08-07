@@ -66,6 +66,7 @@ set build_branch_ps "${build_branch}-post-synth"
 set cur_dir [pwd]
 cd $base_dir
 
+set bcommit ""
 set bctype 3
 
 if {[set error [catch {git_exists}]]} {
@@ -92,6 +93,9 @@ if {$bctype != $bctype_pre} {
     } elseif {$result} {
         puts "ERROR: \[VBS 36] Detected post synthesis GIT diff"
         set bctype 3
+    } else {
+        # Pre and post synthesis match, but the build is dirty (bctype -2)
+        puts "CRITICAL WARNING: \[VBS 36] Build contains uncommitted or untracked working directory changes (BC-flag -2)."
     }
 }
 

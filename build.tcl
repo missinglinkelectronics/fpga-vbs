@@ -285,7 +285,6 @@ set vivado_year [lindex [split "${vivado_version}" "."] 0]
 ## Check simulation environment
 
 if {[catch {set pre_comp_simlib_dir $::env(PRECOMP_SIM_LIBS)}]} {
-    puts "INFO: \[VBS 20] Simulation environment variable PRECOMP_SIM_LIBS not set"
     set lib_compile [dict_val4key "SIM_PARAMS:LIB_COMPILE" $config_dict]
     if {$lib_compile != ""} {
         # Set pre_comp_simlib_dir to the LIB_COMPILE directory or default path
@@ -293,6 +292,7 @@ if {[catch {set pre_comp_simlib_dir $::env(PRECOMP_SIM_LIBS)}]} {
             set pre_comp_simlib_dir [file normalize \
                 "$flavor_dir/[dict get $lib_compile "directory"]"]
         } else {
+            puts "WARNING: \[VBS 20] No directory set for PRECOMP_SIM_LIBS"
             set pre_comp_simlib_dir "$flavor_dir/sim/sim_libs"
         }
         file mkdir $pre_comp_simlib_dir
@@ -924,11 +924,11 @@ foreach tcl_file $tcl_files {
         puts "INFO: \[VBS 20] Execute TCL script ${tcl_file}"
         set result [catch {source "${tcl_file}"} err_msg]
         if {$result != 0} {
-            puts "ERROR: [VBS] Script execution failed in ${tcl_file}: $err_msg"
+            puts "ERROR: \[VBS 20] Script execution failed in ${tcl_file}: $err_msg"
             exit 2
         }
     } else {
-        puts "ERROR: [VBS] TCL file does not exist: '${tcl_file}'"
+        puts "ERROR: \[VBS 20] TCL file does not exist: '${tcl_file}'"
         exit 2
     }
 }
@@ -1016,7 +1016,7 @@ if {$start_step == $build_steps(package) || \
             set zip_name "packaged-ip.zip"
         }
         if {![dict exists $package_ip_dict "ident"]} {
-            puts "ERROR: [VBS] Key 'ident' of section 'PACKAGE_IP' not found in dictionary"
+            puts "ERROR: \[VBS 20] Key 'ident' of section 'PACKAGE_IP' not found in dictionary"
             exit 2
         }
         set ident_dict [dict get $package_ip_dict "ident"]
@@ -1188,13 +1188,13 @@ if {$start_step == $build_steps(package) || \
         # Insert result_base into component.xml
         set sed_regex "s|<spirit:component|<spirit:component xmlns:vbs=\"$result_base\"|"
         if {[catch {exec sed -i $sed_regex [file normalize "${root_dir}/component.xml"]} result]} {
-            puts "ERROR: [VBS] Updating component.xml failed: $result"
+            puts "ERROR: \[VBS 20] Updating component.xml failed: $result"
         }
 
         set zip_archive [file normalize "${root_dir}/${result_base}_${zip_name}"]
         set xml_file [file normalize "${root_dir}/component.xml"]
         if {[catch {exec zip -ju $zip_archive $xml_file} result]} {
-            puts "ERROR: [VBS] Updating zip file failed: $result"
+            puts "ERROR: \[VBS 20] Updating zip file failed: $result"
         }
 
         puts "INFO: \[VBS 20] Done packaging project in IP-XACT format. Output file ${zip_file}"
@@ -1203,7 +1203,7 @@ if {$start_step == $build_steps(package) || \
         dict set bvars ZIPFILE $zip_file
         save_dict "${bvars_file}" $bvars_dict
     } else {
-        puts "ERROR: [VBS] Key 'PACKAGE_IP' not found in dictionary"
+        puts "ERROR: \[VBS 20] Key 'PACKAGE_IP' not found in dictionary"
         exit 2
     }
 }
@@ -1235,7 +1235,7 @@ if {$start_step <= $build_steps(synth_ooc) && \
         foreach run $run_list {
             wait_on_run $run
             if {[get_property PROGRESS $run] != "100%"} {
-                puts "ERROR: [VBS] OOC Synthesis of ${run} failed"
+                puts "ERROR: \[VBS 20] OOC Synthesis of ${run} failed"
                 exit 2
             }
         }
@@ -1253,7 +1253,7 @@ if {$start_step <= $build_steps(synth) && \
     launch_runs $run_synth -jobs 4
     wait_on_run $run_synth
     if {[get_property PROGRESS $run_synth] != "100%"} {
-        puts "ERROR: [VBS] Synthesis failed"
+        puts "ERROR: \[VBS 20] Synthesis failed"
         exit 2
     }
     exec_usr_hooks "sys_synth_post" $bvars_dict
@@ -1272,7 +1272,7 @@ if {$start_step <= $build_steps(impl) && \
     launch_runs $run_impl -jobs 4
     wait_on_run $run_impl
     if {[get_property PROGRESS $run_impl] != "100%"} {
-        puts "ERROR: [VBS] Implementation failed"
+        puts "ERROR: \[VBS 20] Implementation failed"
         exit 2
     }
     exec_usr_hooks "sys_impl_post" $bvars_dict
@@ -1306,7 +1306,7 @@ if {$start_step <= $build_steps(bit) && \
     launch_runs -to_step   $step $run_impl -jobs 4
     wait_on_run $run_impl
     if {[get_property PROGRESS $run_impl] != "100%"} {
-        puts "ERROR: [VBS] Generating Bitstream/Device Image failed"
+        puts "ERROR: \[VBS 20] Generating Bitstream/Device Image failed"
         exit 2
     }
     exec_usr_hooks "sys_bit_post" $bvars_dict
@@ -1329,6 +1329,7 @@ set vmcwarn [llength [lsearch -all -regexp $viv_log "^CRITICAL WARNING: (?!\\\[V
 set vmerr   [llength [lsearch -all -regexp $viv_log "^ERROR: (?!\\\[VBS)"]]
 # VBS messages
 set vbswarn  [llength [lsearch -all -regexp $viv_log "^WARNING: \\\[VBS"]]
+set vbscwarn [llength [lsearch -all -regexp $viv_log "^CRITICAL WARNING: \\\[VBS"]]
 set vbserr   [llength [lsearch -all -regexp $viv_log "^ERROR: \\\[VBS"]]
 close $viv_log_fd
 
@@ -1337,11 +1338,13 @@ dict set bvars_dict VMWARN   $vmwarn
 dict set bvars_dict VMCWARN  $vmcwarn
 dict set bvars_dict VMERR    $vmerr
 dict set bvars_dict VBSWARN  $vbswarn
+dict set bvars_dict VBSCWARN $vbscwarn
 dict set bvars_dict VBSERR   $vbserr
 save_dict $bvars_file $bvars_dict
 
 puts "INFO: \[VBS 20] VBS messages:"
 puts "INFO: \[VBS 20]     WARNINGS=${vbswarn}"
+puts "INFO: \[VBS 20]     CRITICAL WARNINGS=${vbscwarn}"
 puts "INFO: \[VBS 20]     ERRORS=${vbserr}"
 
 puts "INFO: \[VBS 20] Vivado messages:"
@@ -1360,13 +1363,26 @@ if {[info exists timing_status]} {
 ################################################################################
 ## Return error level
 
+set vexit 0
+set gexit 0
+
 if {$vmerr} {
-    set vmerr 4
-}
-set giterr [dict get $bvars_dict "GITERR"]
-if {$giterr} {
-    puts "WARNING: \[VBS 20] GIT commands failed during build process"
-    set giterr 3
+    set vexit 4
 }
 
-exit [expr {$vmerr + $giterr}]
+set git_err 0
+if {[dict exists $bvars_dict "GITERR"]} {
+    set git_err [dict get $bvars_dict "GITERR"]
+}
+set bctype 0
+if {[dict exists $bvars_dict "BCTYPE"]} {
+    set bctype [dict get $bvars_dict "BCTYPE"]
+}
+
+# Mid-synthesis tampering, broken repo execution, or execution error
+if {$git_err > 0 || $bctype == 3} {
+    set gexit 3
+}
+
+# Exit codes: 0 = OK, 3 = Git Error, 4 = Vivado Error, 7 = Both
+exit [expr {$vexit | $gexit}]

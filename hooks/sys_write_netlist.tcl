@@ -79,7 +79,7 @@ open_run "${run_synth}"
 dict for {inst inst_dict} [dict get $config_dict "WRITE_NETLISTS"] {
     set cell [get_cells "${inst}"]
     if {"${cell}" eq ""} {
-        puts "WARNING: \[VBS 38] Cell for Netlist generation not found: ${inst}"
+        puts "CRITICAL WARNING: \[VBS 38] Cell for Netlist generation not found: ${inst}"
         continue
     }
 

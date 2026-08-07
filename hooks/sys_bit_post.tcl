@@ -84,7 +84,7 @@ foreach postfix $copy_list {
         puts "INFO: \[VBS 34] Copying [file tail $src_file] to build directory as [file tail $dst_file]"
         file copy -force -- $src_file $dst_file
     } else {
-        puts "WARNING: \[VBS 34] Expected file not found: $src_file"
+        puts "CRITICAL WARNING: \[VBS 34] Expected file not found: $src_file"
     }
 }
 

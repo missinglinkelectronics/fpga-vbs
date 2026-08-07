@@ -64,6 +64,7 @@ fi
 python3 "${LOG_PARSER_SCRIPT}" "${LOG_FILE}" \
     -o issue_report.json \
     --vbs-errors 1 \
+    --vbs-cwarns 0 \
     --vivado-errors 0 \
     --vivado-cwarns 0
 

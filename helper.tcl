@@ -163,10 +163,10 @@ proc git_exists {} {
         set ec [dict get $options -errorcode]
         if {[regexp {^POSIX ENOENT} $ec] == 1} {
             # assume no git executable found
-            puts "INFO: \[VBS 21] Apparently there is no git executable"
+            puts "WARNING: \[VBS 21] Apparently there is no git executable"
             return -code 2
         } elseif {[regexp {^fatal: not a git repository} $result] == 1} {
-            puts "INFO: \[VBS 21] Repository directory is not a git repository"
+            puts "WARNING: \[VBS 21] Repository directory is not a git repository"
             return -code 2
         } else {
             puts "ERROR: \[VBS 21] Git check failed ($result)"
@@ -236,7 +236,7 @@ proc git_stamp_submodules {build_branch repo_root} {
                         puts "INFO: \[VBS 21] Reusing existing submodule commit $existing_commit for '$sub_path' ..."
                         lappend dirty_submodules [list $sub_path $base_sub_branch 0 $existing_commit $rel_sub_path]
                     } else {
-                        puts "INFO: \[VBS 21] Submodule '$sub_path' is dirty. Creating temporary submodule commit ..."
+                        puts "WARNING: \[VBS 21] Submodule '$sub_path' is dirty. Creating temporary submodule commit ..."
 
                         # Save starting HEAD of submodule
                         catch {exec git -C $sub_path rev-parse --short HEAD} sub_head
@@ -244,7 +244,7 @@ proc git_stamp_submodules {build_branch repo_root} {
                         # Stage and commit inside submodule using step-specific branch tag
                         catch {exec git -C $sub_path add -A .}
                         if {[catch {exec git -C $sub_path commit -m "VBS Submodule Build: $step_sub_branch"} err]} {
-                            puts "WARNING: \[VBS 21] Failed to commit submodule '$sub_path': $err"
+                            puts "ERROR: \[VBS 21] Failed to commit submodule '$sub_path': $err"
                         } else {
                             catch {exec git -C $sub_path rev-parse --verify HEAD} new_sub_head
                             set new_sub_head [string trim $new_sub_head]
@@ -352,7 +352,7 @@ proc git_stamp {build_branch} {
             set rel_sub_path [lindex $item 4]
             if {$sub_sha ne "" && $rel_sub_path ne ""} {
                 if {[catch {exec git -C $repo_root update-index --add --cacheinfo 160000,$sub_sha,$rel_sub_path} upd_err]} {
-                    puts "WARNING: \[VBS 21] Failed to update index for '$rel_sub_path': $upd_err"
+                    puts "ERROR: \[VBS 21] Failed to update index for '$rel_sub_path': $upd_err"
                 }
             }
         }
@@ -514,7 +514,7 @@ proc vbs_check_syntax {fileset_obj} {
     if {$has_errors} {
         puts "\nERROR: \[VBS 21] Syntax check failed for supported file types:"
         puts $error_log
-        return "CRITICAL WARNING: Syntax errors found"
+        return "1"
     }
 
     return ""
