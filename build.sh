@@ -168,6 +168,7 @@ while getopts "$OPTSTRING" opt; do
     d)
         # Resolves the build directory to an absolute path.
         BUILD_DIR_TMP="$(pwd)"
+        mkdir -p "${OPTARG}"
         if cd "${OPTARG}"; then
             BUILD_DIR="$(pwd)"
             cd "$BUILD_DIR_TMP"
