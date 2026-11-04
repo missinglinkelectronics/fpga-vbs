@@ -109,6 +109,23 @@ proc ::vbs::archive::archive_prj {args} {
         }
     }
 
+    # archive_project -exclude_run_results resets the runs in its temporary project copy.
+    # This is undocumented; presumably Vivado reuses reset_run to drop the run outputs while
+    # keeping the run definitions (see "[Coretcl 2-135] resetting runs" in the archive log).
+    # Resetting a completed synth run with auto-incremental enabled copies its DCP into the
+    # source project's utils_1 as a remote file, which ends up as a broken
+    # INCREMENTAL_CHECKPOINT reference in the archive (CRITICAL WARNING [Project 1-311]).
+    # Reset those runs here with auto-incremental temporarily disabled, then restore the
+    # setting so the archived project keeps Vivado's default incremental synthesis behavior.
+    # -noclean_dir keeps all run outputs (DCPs, reports, logs, bitstream) on disk for the CI job.
+    if {[lsearch -exact $args "-exclude_run_results"] >= 0} {
+        foreach run [get_runs -filter {IS_SYNTHESIS && AUTO_INCREMENTAL_CHECKPOINT}] {
+            set_property AUTO_INCREMENTAL_CHECKPOINT 0 $run
+            reset_run -noclean_dir $run
+            set_property AUTO_INCREMENTAL_CHECKPOINT 1 $run
+        }
+    }
+
     # Run Vivado's archive project command
     archive_project {*}$args
 }
